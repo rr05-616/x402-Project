@@ -1,6 +1,12 @@
 import { BackgroundFX } from "@/components/background";
 import { SlideThumb, useSlideNavigation } from "@/components/deck/presenter";
-import { DeckStage, PrintDeck, ReadinessRing, deckSlides } from "@/components/deck/slides";
+import {
+  DeckStage,
+  DeckWireframe,
+  PrintDeck,
+  ReadinessRing,
+  deckSlides,
+} from "@/components/deck/slides";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   AlertDialog,
@@ -44,6 +50,8 @@ import {
   Globe,
   Link2,
   Loader2,
+  PanelsTopLeft,
+  Pencil,
   MessageSquare,
   Mic,
   Palette,
@@ -66,9 +74,18 @@ export default function DeckView() {
   const deleteDeck = useMutation(api.decks.deleteDeck);
   const publishDeck = useMutation(api.decks.publishDeck);
   const setDeckTemplate = useMutation(api.decks.setDeckTemplate);
+  const updateDeckContent = useMutation(api.decks.updateDeckContent);
   const [shareCopied, setShareCopied] = useState(false);
   const [template, setTemplate] = useState<string | null>(null);
-  const [voicePlaying, setVoicePlaying] = useState<"30" | "60" | "180" | null>(null);
+  const [wireframeMode, setWireframeMode] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [savingEdits, setSavingEdits] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftTagline, setDraftTagline] = useState("");
+  const [draftSections, setDraftSections] = useState<PitchDeck["sections"]>([]);
+  const [voicePlaying, setVoicePlaying] = useState<"30" | "60" | "180" | null>(
+    null,
+  );
 
   const deck: PitchDeck | null = useMemo(() => {
     if (!deckDoc) return null;
@@ -95,11 +112,33 @@ export default function DeckView() {
         })),
       },
       template: template ?? deckDoc.template ?? "glass",
+      slideCount: deckDoc.slideCount === 13 ? 13 : 12,
     };
   }, [deckDoc, template]);
+  const hasUnsavedEdits = useMemo(
+    () =>
+      Boolean(
+        deckDoc &&
+        (draftTitle !== deckDoc.title ||
+          draftTagline !== deckDoc.tagline ||
+          JSON.stringify(draftSections) !==
+            JSON.stringify(
+              deckDoc.sections.map((section) => ({
+                key: section.key,
+                title: section.title,
+                eyebrow: section.eyebrow,
+                bullets: section.bullets,
+                accent: section.accent,
+                derived: section.derived,
+              })),
+            )),
+      ),
+    [deckDoc, draftSections, draftTagline, draftTitle],
+  );
 
   const total = deck ? deckSlides(deck).length : 0;
-  const { index, direction, goTo, next, prev, isFirst, isLast } = useSlideNavigation(total);
+  const { index, direction, goTo, next, prev, isFirst, isLast } =
+    useSlideNavigation(total);
 
   const handleShare = async () => {
     if (!deckDoc) return;
@@ -139,13 +178,65 @@ export default function DeckView() {
   };
 
   const handleTemplate = async (tpl: string) => {
+    const previous = deckDoc?.template ?? "glass";
     setTemplate(tpl);
     try {
       await setDeckTemplate({ deckId, template: tpl });
       toast.success(`Template switched to ${getTemplate(tpl).name}`);
-    } catch {
-      /* local preview still updates */
+    } catch (error) {
+      setTemplate(previous);
+      toast.error(
+        error instanceof Error ? error.message : "Could not save the template.",
+      );
     }
+  };
+
+  const handleSaveEdits = async () => {
+    setSavingEdits(true);
+    try {
+      await updateDeckContent({
+        deckId,
+        title: draftTitle,
+        tagline: draftTagline,
+        sections: draftSections,
+      });
+      setEditOpen(false);
+      toast.success("Deck edits saved");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not save deck edits.",
+      );
+    } finally {
+      setSavingEdits(false);
+    }
+  };
+
+  const handleOpenEditor = () => {
+    if (!deckDoc) return;
+    setDraftTitle(deckDoc.title);
+    setDraftTagline(deckDoc.tagline);
+    setDraftSections(
+      deckDoc.sections.map((section) => ({
+        key: section.key as PitchDeck["sections"][number]["key"],
+        title: section.title,
+        eyebrow: section.eyebrow,
+        bullets: section.bullets,
+        accent: section.accent,
+        derived: section.derived,
+      })),
+    );
+    setEditOpen(true);
+  };
+
+  const handleEditOpenChange = (open: boolean) => {
+    if (
+      !open &&
+      hasUnsavedEdits &&
+      !window.confirm("Discard your unsaved deck edits?")
+    ) {
+      return;
+    }
+    setEditOpen(open);
   };
 
   const handleVoice = (duration: "30" | "60" | "180") => {
@@ -207,7 +298,11 @@ export default function DeckView() {
         {/* Top bar */}
         <header className="glass-strong flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3">
           <Link to="/decks">
-            <Button variant="outline" size="icon" className="glass-soft h-10 w-10 rounded-xl text-white/70 hover:bg-white/10">
+            <Button
+              variant="outline"
+              size="icon"
+              className="glass-soft h-10 w-10 rounded-xl text-white/70 hover:bg-white/10"
+            >
               <ArrowLeft className="h-[18px] w-[18px]" />
             </Button>
           </Link>
@@ -217,7 +312,7 @@ export default function DeckView() {
             </h1>
             <p className="truncate text-[12px] text-white/45">
               {deckDoc
-                ? `13 slides · ${deckDoc.stats.words.toLocaleString()} words distilled${deckDoc.published ? " · published to catalog" : ""}`
+                ? `${slides.length} slides · ${deckDoc.stats.words.toLocaleString()} words from source${deckDoc.published ? " · published to catalog" : ""}`
                 : ""}
             </p>
           </div>
@@ -237,15 +332,53 @@ export default function DeckView() {
                     ? "scale-110 ring-2 ring-white/70 ring-offset-2 ring-offset-[oklch(0.16_0.03_170)]"
                     : "opacity-60 hover:scale-105 hover:opacity-100",
                 )}
-                style={{ background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})` }}
+                style={{
+                  background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})`,
+                }}
               />
             ))}
           </div>
 
           <div className="flex items-center gap-2">
-            <VoicePitchMenu playing={voicePlaying} onPlay={handleVoice} deck={deck} />
-            <X402Gate deckId={deckId} deck={deck} />
-            <MintNftGate deckId={deckId} deck={deck} shareCode={deckDoc?.shareCode} />
+            <Button
+              variant="outline"
+              onClick={handleOpenEditor}
+              className="glass-soft gap-2 rounded-xl text-[13px] text-white/70 hover:bg-white/10"
+            >
+              <Pencil className="h-4 w-4" />
+              <span className="hidden sm:inline">Edit</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setWireframeMode((current) => !current)}
+              aria-pressed={wireframeMode}
+              className={cn(
+                "gap-2 rounded-xl text-[13px]",
+                wireframeMode
+                  ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
+                  : "glass-soft text-white/70 hover:bg-white/10",
+              )}
+            >
+              <PanelsTopLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">
+                {wireframeMode ? "Preview" : "Wireframe"}
+              </span>
+            </Button>
+            <VoicePitchMenu
+              playing={voicePlaying}
+              onPlay={handleVoice}
+              deck={deck}
+            />
+            <X402Gate
+              deckId={deckId}
+              deck={deck}
+              sourceText={deckDoc?.sourceMarkdown ?? ""}
+            />
+            <MintNftGate
+              deckId={deckId}
+              deck={deck}
+              shareCode={deckDoc?.shareCode}
+            />
             <Button
               variant="outline"
               onClick={handlePublish}
@@ -257,18 +390,24 @@ export default function DeckView() {
               )}
             >
               <Globe className="h-4 w-4" />
-              <span className="hidden sm:inline">{deckDoc?.published ? "Published" : "Publish"}</span>
+              <span className="hidden sm:inline">
+                {deckDoc?.published ? "Published" : "Publish"}
+              </span>
             </Button>
             <Button
               variant="outline"
               onClick={handleShare}
               className={cn(
                 "glass-soft gap-2 rounded-xl text-[13px]",
-                shareCopied ? "border-emerald-400/30 text-emerald-300" : "text-white/70 hover:bg-white/10",
+                shareCopied
+                  ? "border-emerald-400/30 text-emerald-300"
+                  : "text-white/70 hover:bg-white/10",
               )}
             >
               <Link2 className="h-4 w-4" />
-              <span className="hidden sm:inline">{shareCopied ? "Copied!" : "Share link"}</span>
+              <span className="hidden sm:inline">
+                {shareCopied ? "Copied!" : "Share link"}
+              </span>
             </Button>
             <Button
               variant="outline"
@@ -281,7 +420,7 @@ export default function DeckView() {
             <Button
               variant="outline"
               onClick={handlePptx}
-              disabled={!deck}
+              disabled={!deck || savingEdits}
               className="glass-soft gap-2 rounded-xl text-[13px] text-white/70 hover:bg-white/10"
             >
               <FileDown className="h-4 w-4" />
@@ -289,20 +428,31 @@ export default function DeckView() {
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" size="icon" className="glass-soft h-10 w-10 rounded-xl text-white/40 hover:bg-rose-500/10 hover:text-rose-400">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="glass-soft h-10 w-10 rounded-xl text-white/40 hover:bg-rose-500/10 hover:text-rose-400"
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent className="glass-strong rounded-2xl">
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete “{deckDoc?.title ?? "this deck"}”?</AlertDialogTitle>
+                  <AlertDialogTitle>
+                    Delete “{deckDoc?.title ?? "this deck"}”?
+                  </AlertDialogTitle>
                   <AlertDialogDescription>
                     This removes the deck and its share link permanently.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="glass-soft rounded-xl">Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete} className="rounded-xl bg-rose-500 text-white hover:bg-rose-600">
+                  <AlertDialogCancel className="glass-soft rounded-xl">
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    className="rounded-xl bg-rose-500 text-white hover:bg-rose-600"
+                  >
                     Delete
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -310,6 +460,107 @@ export default function DeckView() {
             </AlertDialog>
           </div>
         </header>
+
+        <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
+          <DialogContent className="glass-strong max-h-[90vh] max-w-3xl overflow-y-auto rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-white">
+                Edit presentation text
+              </DialogTitle>
+              <DialogDescription className="text-white/55">
+                Changes are saved to this deck and used by the preview and
+                PowerPoint export.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <label className="block space-y-1.5 text-[12px] font-medium text-white/65">
+                Project title
+                <input
+                  value={draftTitle}
+                  maxLength={120}
+                  onChange={(event) => setDraftTitle(event.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white"
+                />
+              </label>
+              <label className="block space-y-1.5 text-[12px] font-medium text-white/65">
+                Summary
+                <Textarea
+                  value={draftTagline}
+                  maxLength={300}
+                  onChange={(event) => setDraftTagline(event.target.value)}
+                  className="min-h-20 border-white/10 bg-white/5 text-white"
+                />
+              </label>
+              {draftSections.map((section, sectionIndex) => (
+                <div
+                  key={section.key}
+                  className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3"
+                >
+                  <label className="block space-y-1.5 text-[12px] font-medium text-white/65">
+                    Section title
+                    <input
+                      value={section.title}
+                      maxLength={100}
+                      onChange={(event) =>
+                        setDraftSections((current) =>
+                          current.map((item, index) =>
+                            index === sectionIndex
+                              ? { ...item, title: event.target.value }
+                              : item,
+                          ),
+                        )
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                    />
+                  </label>
+                  <label className="block space-y-1.5 text-[12px] font-medium text-white/65">
+                    Slide points (one per line)
+                    <Textarea
+                      value={section.bullets.join("\n")}
+                      maxLength={8000}
+                      onChange={(event) =>
+                        setDraftSections((current) =>
+                          current.map((item, index) =>
+                            index === sectionIndex
+                              ? {
+                                  ...item,
+                                  bullets: event.target.value
+                                    .split(/\r?\n/)
+                                    .map((line) => line.trim())
+                                    .filter(Boolean),
+                                }
+                              : item,
+                          ),
+                        )
+                      }
+                      className="min-h-24 border-white/10 bg-white/5 text-white"
+                    />
+                  </label>
+                </div>
+              ))}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleEditOpenChange(false)}
+                  disabled={savingEdits}
+                  className="glass-soft rounded-xl text-white/70"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveEdits}
+                  disabled={savingEdits}
+                  className="gap-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500"
+                >
+                  {savingEdits ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
+                  Save changes
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {!deckDoc || !deck ? (
           <div className="mt-6 flex flex-col items-center justify-center gap-4 py-24 text-center">
@@ -339,7 +590,11 @@ export default function DeckView() {
             {/* Stage + insights */}
             <div className="min-w-0 flex-1">
               <div className="relative">
-                <DeckStage deck={deck} index={index} direction={direction} />
+                {wireframeMode ? (
+                  <DeckWireframe deck={deck} index={index} />
+                ) : (
+                  <DeckStage deck={deck} index={index} direction={direction} />
+                )}
 
                 {!isFirst && (
                   <button
@@ -399,11 +654,17 @@ export default function DeckView() {
 
               {/* Readiness panel */}
               <div className="glass mt-4 grid gap-5 rounded-2xl p-5 sm:grid-cols-[auto_1fr]">
-                <ReadinessRing score={deck.readiness.overall} size={124} stroke={9} />
+                <ReadinessRing
+                  score={deck.readiness.overall}
+                  size={124}
+                  stroke={9}
+                />
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                   {deck.readiness.metrics.map((m) => (
                     <div key={m.key} className="flex items-center gap-3">
-                      <span className="w-24 shrink-0 text-[12px] font-semibold text-white/70">{m.label}</span>
+                      <span className="w-24 shrink-0 text-[12px] font-semibold text-white/70">
+                        {m.label}
+                      </span>
                       <div className="h-2 flex-1 overflow-hidden rounded-full border border-white/10 bg-white/5">
                         <motion.div
                           className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-blue-400"
@@ -437,7 +698,8 @@ export default function DeckView() {
                   : slides[index]?.kind === "closing"
                     ? "Thank You"
                     : slides[index]?.kind === "section"
-                      ? (slides[index] as { section: { title: string } }).section.title
+                      ? (slides[index] as { section: { title: string } })
+                          .section.title
                       : slideLabelShort(slides[index] as { insight: string })}
               </div>
 
@@ -467,7 +729,10 @@ function slideLabelShort(slide: { insight: string }): string {
 /* Voice pitch                                                         */
 /* ------------------------------------------------------------------ */
 
-function buildVoiceScript(deck: PitchDeck, duration: "30" | "60" | "180"): string {
+function buildVoiceScript(
+  deck: PitchDeck,
+  duration: "30" | "60" | "180",
+): string {
   const ins = deck.insights;
   if (duration === "30") {
     return ins.elevatorPitch;
@@ -477,7 +742,10 @@ function buildVoiceScript(deck: PitchDeck, duration: "30" | "60" | "180"): strin
   }
   return [
     ins.executiveSummary,
-    `The problem: ${deck.sections.find((s) => s.key === "problem")?.bullets.slice(0, 2).join(" And ")}`,
+    `The problem: ${deck.sections
+      .find((s) => s.key === "problem")
+      ?.bullets.slice(0, 2)
+      .join(" And ")}`,
     `Our solution: ${ins.elevatorPitch}`,
     `Market: TAM ${ins.tam}, SAM ${ins.sam}, SOM ${ins.som}. ${ins.marketNote}`,
     `Business model: ${ins.businessModel}`,
@@ -505,26 +773,39 @@ function VoicePitchMenu({
           disabled={!deck}
           className={cn(
             "glass-soft gap-2 rounded-xl text-[13px] hover:bg-white/10",
-            playing ? "border-emerald-400/40 text-emerald-300" : "text-white/70",
+            playing
+              ? "border-emerald-400/40 text-emerald-300"
+              : "text-white/70",
           )}
         >
           <Mic className="h-4 w-4" />
-          <span className="hidden sm:inline">{playing ? "Playing…" : "AI Voice"}</span>
+          <span className="hidden sm:inline">
+            {playing ? "Playing…" : "AI Voice"}
+          </span>
         </Button>
       </DialogTrigger>
       <DialogContent className="glass-strong rounded-2xl">
         <DialogHeader>
           <DialogTitle className="text-white">AI voice pitch</DialogTitle>
           <DialogDescription className="text-white/50">
-            Generate a narrated pitch read aloud with the browser&apos;s speech engine.
+            Generate a narrated pitch read aloud with the browser&apos;s speech
+            engine.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           {(
             [
               { id: "30", label: "30-second pitch", desc: "Elevator pitch" },
-              { id: "60", label: "60-second pitch", desc: "Problem → solution → ask" },
-              { id: "180", label: "3-minute presentation", desc: "Full investor narrative" },
+              {
+                id: "60",
+                label: "60-second pitch",
+                desc: "Problem → solution → ask",
+              },
+              {
+                id: "180",
+                label: "3-minute presentation",
+                desc: "Full investor narrative",
+              },
             ] as const
           ).map((o) => (
             <button
@@ -539,8 +820,12 @@ function VoicePitchMenu({
               )}
             >
               <span>
-                <span className="block text-[14px] font-semibold text-white">{o.label}</span>
-                <span className="block text-[12px] text-white/45">{o.desc}</span>
+                <span className="block text-[14px] font-semibold text-white">
+                  {o.label}
+                </span>
+                <span className="block text-[12px] text-white/45">
+                  {o.desc}
+                </span>
               </span>
               {playing === o.id ? (
                 <Loader2 className="h-4 w-4 animate-spin text-emerald-300" />
@@ -550,7 +835,8 @@ function VoicePitchMenu({
             </button>
           ))}
           <p className="text-[11.5px] leading-relaxed text-white/40">
-            Tip: narration uses your system voices — pick a natural one in OS settings for best results.
+            Tip: narration uses your system voices — pick a natural one in OS
+            settings for best results.
           </p>
         </div>
       </DialogContent>
@@ -575,11 +861,21 @@ interface X402Quote {
   description: string;
 }
 
-function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | null }) {
+function X402Gate({
+  deckId,
+  deck,
+  sourceText,
+}: {
+  deckId: Id<"decks">;
+  deck: PitchDeck | null;
+  sourceText: string;
+}) {
   const recordUnlock = useMutation(api.payments.recordX402Unlock);
   const unlock = useQuery(api.payments.isDeckUnlocked, { deckId });
 
-  const [step, setStep] = useState<"wallet" | "authorize" | "verify" | "done">("wallet");
+  const [step, setStep] = useState<"wallet" | "authorize" | "verify" | "done">(
+    "wallet",
+  );
   const [walletKind, setWalletKind] = useState<WalletKind | null>(null);
   const [walletAddress, setWalletAddress] = useState("");
   const [txHash, setTxHash] = useState("");
@@ -615,7 +911,12 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
       const { fetchX402Quote } = await import("@/lib/algorand");
       const q = await fetchX402Quote({
         serverUrl,
-        body: { deckId, projectName: deck?.title ?? "" },
+        body: {
+          deckId,
+          projectName: deck?.title ?? "",
+          sourceText,
+          slideCount: deck?.slideCount ?? 12,
+        },
       });
 
       const isTestnet = q.network === "algorand-testnet";
@@ -646,7 +947,9 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
     } catch (error) {
       setQuote(null);
       setQuoteError(
-        error instanceof Error ? error.message : "Could not fetch the payment quote.",
+        error instanceof Error
+          ? error.message
+          : "Could not fetch the payment quote.",
       );
     } finally {
       setBusy(false);
@@ -699,6 +1002,8 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
         body: {
           deckId,
           projectName: deck?.title ?? "",
+          sourceText,
+          slideCount: deck?.slideCount ?? 12,
         },
       });
 
@@ -751,19 +1056,26 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
     }
   };
 
-  const handleVerify = async () => {
-    toast.info("x402 v2 verifies and settles the payment automatically after signing.");
-  };
-
   const verified = unlock?.verified?.[0];
   const amountLabel = quote ? `$${quote.amountUsd.toFixed(2)} USDC` : "USDC";
-  const networkLabel = (quote?.network ?? "algorand-testnet").replace("algorand-", "");
+  const networkLabel = (quote?.network ?? "algorand-testnet").replace(
+    "algorand-",
+    "",
+  );
   const explorerHref =
     receipt?.explorer ||
-    (quote ? `${quote.explorerBase}/tx/${txHash || verified?.txHash || ""}` : "#");
+    (quote
+      ? `${quote.explorerBase}/tx/${txHash || verified?.txHash || ""}`
+      : "#");
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) reset();
+      }}
+    >
       <DialogTrigger asChild>
         <Button
           variant="outline"
@@ -776,7 +1088,9 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
           )}
         >
           <Wallet className="h-4 w-4" />
-          <span className="hidden sm:inline">{unlock?.unlocked ? "Premium" : "Premium deck"}</span>
+          <span className="hidden sm:inline">
+            {unlock?.unlocked ? "Premium" : "Premium deck"}
+          </span>
         </Button>
       </DialogTrigger>
       <DialogContent className="glass-strong rounded-2xl">
@@ -786,46 +1100,62 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
             Generate premium deck
           </DialogTitle>
           <DialogDescription className="text-white/50">
-            Pay with USDC via a secure crypto payment to unlock the premium
-            deck — full-res exports, PPTX, and early access. The payment is
-            verified on-chain before generation is unlocked.
+            Pay with USDC via a secure crypto payment to unlock the premium deck
+            — full-res exports, PPTX, and early access. The payment is verified
+            on-chain before generation is unlocked.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Stepper */}
           <div className="flex items-center gap-1.5">
-            {["Connect wallet", "Authorize", "Verify", "Done"].map((label, i) => {
-              const stateIdx = ["wallet", "authorize", "verify", "done"].indexOf(step);
-              const done = i < stateIdx;
-              const active = i === stateIdx;
-              return (
-                <div key={label} className="flex flex-1 flex-col items-center gap-1">
-                  <span
-                    className={cn(
-                      "grid h-7 w-7 place-items-center rounded-full text-[11px] font-bold",
-                      done
-                        ? "bg-emerald-500 text-white"
-                        : active
-                          ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50"
-                          : "bg-white/5 text-white/40",
-                    )}
+            {["Connect wallet", "Authorize", "Verify", "Done"].map(
+              (label, i) => {
+                const stateIdx = [
+                  "wallet",
+                  "authorize",
+                  "verify",
+                  "done",
+                ].indexOf(step);
+                const done = i < stateIdx;
+                const active = i === stateIdx;
+                return (
+                  <div
+                    key={label}
+                    className="flex flex-1 flex-col items-center gap-1"
                   >
-                    {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : i + 1}
-                  </span>
-                  <span className={cn("text-[10px] font-medium", active ? "text-white/80" : "text-white/35")}>
-                    {label}
-                  </span>
-                </div>
-              );
-            })}
+                    <span
+                      className={cn(
+                        "grid h-7 w-7 place-items-center rounded-full text-[11px] font-bold",
+                        done
+                          ? "bg-emerald-500 text-white"
+                          : active
+                            ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50"
+                            : "bg-white/5 text-white/40",
+                      )}
+                    >
+                      {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : i + 1}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-[10px] font-medium",
+                        active ? "text-white/80" : "text-white/35",
+                      )}
+                    >
+                      {label}
+                    </span>
+                  </div>
+                );
+              },
+            )}
           </div>
 
           {step === "wallet" && (
             <div className="space-y-3">
               <p className="text-[12.5px] text-white/60">
-                Connect an Algorand wallet to pay a small USDC fee via secure crypto payment.
-                The price is quoted by the payment server when you connect.
+                Connect an Algorand wallet to pay a small USDC fee via secure
+                crypto payment. The price is quoted by the payment server when
+                you connect.
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <Button
@@ -833,7 +1163,11 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
                   disabled={busy}
                   className="h-11 gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-[0_10px_24px_rgba(0,168,107,0.3)]"
                 >
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wallet className="h-4 w-4" />
+                  )}
                   Pera
                 </Button>
                 <Button
@@ -841,14 +1175,19 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
                   disabled={busy}
                   className="h-11 gap-2 rounded-xl border border-white/15 bg-white/5 text-white/85 backdrop-blur-md transition hover:bg-white/10"
                 >
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 text-emerald-300" />}
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Zap className="h-4 w-4 text-emerald-300" />
+                  )}
                   Defly
                 </Button>
               </div>
 
               <p className="text-center text-[11px] text-white/35">
-                x402 v2 signs the payment directly from the connected Pera or Defly wallet.
-                Make sure the wallet is on Algorand TestNet and has TestNet USDC.
+                x402 v2 signs the payment directly from the connected Pera or
+                Defly wallet. Make sure the wallet is on Algorand TestNet and
+                has TestNet USDC.
               </p>
             </div>
           )}
@@ -857,32 +1196,44 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
             <div className="space-y-3">
               {quoteError ? (
                 <div className="rounded-xl border border-red-400/25 bg-red-500/[0.07] p-4">
-                  <p className="text-[12.5px] leading-relaxed text-red-300">{quoteError}</p>
+                  <p className="text-[12.5px] leading-relaxed text-red-300">
+                    {quoteError}
+                  </p>
                   <Button
                     onClick={loadQuote}
                     disabled={busy}
                     variant="outline"
                     className="mt-3 w-full gap-2 rounded-xl glass-soft text-white/70 hover:bg-white/10"
                   >
-                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+                    {busy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Wallet className="h-4 w-4" />
+                    )}
                     Retry payment quote
                   </Button>
                 </div>
               ) : !quote ? (
                 <div className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 p-6">
                   <Loader2 className="h-4 w-4 animate-spin text-emerald-300" />
-                  <span className="text-[12.5px] text-white/60">Requesting payment quote…</span>
+                  <span className="text-[12.5px] text-white/60">
+                    Requesting payment quote…
+                  </span>
                 </div>
               ) : (
                 <>
                   <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/[0.07] p-4">
                     <div className="flex items-center justify-between text-[13px]">
                       <span className="text-white/60">Amount</span>
-                      <span className="font-bold text-white">{amountLabel}</span>
+                      <span className="font-bold text-white">
+                        {amountLabel}
+                      </span>
                     </div>
                     <div className="mt-2 flex items-center justify-between text-[13px]">
                       <span className="text-white/60">Asset</span>
-                      <span className="font-semibold text-white/85">USDC (ASA {quote.assetId})</span>
+                      <span className="font-semibold text-white/85">
+                        USDC (ASA {quote.assetId})
+                      </span>
                     </div>
                     <div className="mt-2 flex items-center justify-between text-[13px]">
                       <span className="text-white/60">Network</span>
@@ -914,7 +1265,11 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
                     disabled={busy}
                     className="w-full gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-[0_10px_24px_rgba(0,168,107,0.3)]"
                   >
-                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+                    {busy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Wallet className="h-4 w-4" />
+                    )}
                     {busy
                       ? "Contacting wallet…"
                       : walletKind === "manual"
@@ -947,10 +1302,13 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
                   </div>
                   <div className="mt-2 flex items-center justify-between text-[13px]">
                     <span className="text-white/60">Network</span>
-                    <span className="font-semibold text-emerald-300">{networkLabel}</span>
+                    <span className="font-semibold text-emerald-300">
+                      {networkLabel}
+                    </span>
                   </div>
                   <p className="mt-3 text-[11.5px] leading-relaxed text-white/40">
-                    x402 v2 handles the payment signature and settlement automatically.
+                    x402 v2 handles the payment signature and settlement
+                    automatically.
                   </p>
                 </div>
               )}
@@ -962,7 +1320,9 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
               <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/[0.08] p-4">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                  <span className="text-[14px] font-bold text-white">Payment verified — deck unlocked</span>
+                  <span className="text-[14px] font-bold text-white">
+                    Payment verified — deck unlocked
+                  </span>
                 </div>
                 <div className="mt-3 space-y-2 text-[12.5px]">
                   <div className="flex justify-between gap-3">
@@ -984,7 +1344,9 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
                   </div>
                   <div className="flex justify-between gap-3">
                     <span className="text-white/50">Amount</span>
-                    <span className="font-bold text-white">{receipt?.cost ?? amountLabel}</span>
+                    <span className="font-bold text-white">
+                      {receipt?.cost ?? amountLabel}
+                    </span>
                   </div>
                   <div className="flex justify-between gap-3">
                     <span className="text-white/50">Network</span>
@@ -994,11 +1356,17 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
                   </div>
                   <div className="flex justify-between gap-3">
                     <span className="text-white/50">Payment status</span>
-                    <span className="font-semibold text-emerald-300">Verified ✓</span>
+                    <span className="font-semibold text-emerald-300">
+                      Verified ✓
+                    </span>
                   </div>
                   <div className="flex justify-between gap-3">
                     <span className="text-white/50">Confirmed round</span>
-                    <span className="text-white/70">{receipt?.confirmedRound ?? verified?.confirmedRound ?? "—"}</span>
+                    <span className="text-white/70">
+                      {receipt?.confirmedRound ??
+                        verified?.confirmedRound ??
+                        "—"}
+                    </span>
                   </div>
                   <div className="flex justify-between gap-3">
                     <span className="text-white/50">Timestamp</span>
@@ -1008,7 +1376,9 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
                   </div>
                   <div className="flex justify-between gap-3">
                     <span className="text-white/50">Generation status</span>
-                    <span className="font-semibold text-white/85">Ready — exports unlocked</span>
+                    <span className="font-semibold text-white/85">
+                      Ready — exports unlocked
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1027,7 +1397,11 @@ function X402Gate({ deckId, deck }: { deckId: Id<"decks">; deck: PitchDeck | nul
               <span className="text-[12.5px] font-semibold text-emerald-300">
                 ✓ This deck is already unlocked
               </span>
-              <Button size="sm" className="rounded-lg bg-emerald-500 text-white" onClick={() => setStep("done")}>
+              <Button
+                size="sm"
+                className="rounded-lg bg-emerald-500 text-white"
+                onClick={() => setStep("done")}
+              >
                 View receipt
               </Button>
             </div>
@@ -1091,7 +1465,9 @@ function MintNftGate({
       }
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : "Could not connect the wallet");
+      setError(
+        err instanceof Error ? err.message : "Could not connect the wallet",
+      );
     } finally {
       setBusy(false);
     }
@@ -1116,7 +1492,6 @@ function MintNftGate({
         walletAddress,
         metadata: meta,
         algodUrl: config.algodUrl,
-        
       });
       await recordMint({
         deckId,
@@ -1134,14 +1509,24 @@ function MintNftGate({
       reset();
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : "Minting failed — check your wallet.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Minting failed — check your wallet.",
+      );
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) reset();
+      }}
+    >
       <DialogTrigger asChild>
         <Button
           variant="outline"
@@ -1154,7 +1539,9 @@ function MintNftGate({
           )}
         >
           <Box className="h-4 w-4" />
-          <span className="hidden sm:inline">{alreadyMinted ? "Minted" : "Mint NFT"}</span>
+          <span className="hidden sm:inline">
+            {alreadyMinted ? "Minted" : "Mint NFT"}
+          </span>
         </Button>
       </DialogTrigger>
       <DialogContent className="glass-strong max-w-lg rounded-2xl">
@@ -1176,7 +1563,9 @@ function MintNftGate({
               <div className="flex items-center justify-between text-[13px]">
                 <span className="text-white/60">Asset ID</span>
                 <a
-                  href={config ? `${config.explorerBase}/asset/${nft.assetId}` : "#"}
+                  href={
+                    config ? `${config.explorerBase}/asset/${nft.assetId}` : "#"
+                  }
                   target="_blank"
                   rel="noreferrer"
                   className="font-mono text-[13px] font-bold text-purple-300 underline-offset-2 hover:underline"
@@ -1199,7 +1588,9 @@ function MintNftGate({
               <div className="mt-2 flex items-center justify-between text-[13px]">
                 <span className="text-white/60">Transaction</span>
                 <a
-                  href={config ? `${config.explorerBase}/tx/${nft.txHash}` : "#"}
+                  href={
+                    config ? `${config.explorerBase}/tx/${nft.txHash}` : "#"
+                  }
                   target="_blank"
                   rel="noreferrer"
                   className="max-w-[200px] truncate font-mono text-[11px] text-purple-300 underline-offset-2 hover:underline"
@@ -1208,7 +1599,10 @@ function MintNftGate({
                 </a>
               </div>
             </div>
-            <Button onClick={() => setOpen(false)} className="w-full rounded-xl bg-purple-500 text-white hover:bg-purple-600">
+            <Button
+              onClick={() => setOpen(false)}
+              className="w-full rounded-xl bg-purple-500 text-white hover:bg-purple-600"
+            >
               Done
             </Button>
           </div>
@@ -1240,7 +1634,9 @@ function MintNftGate({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-white/50">Sections</span>
-                    <span className="font-semibold text-white/85">{deck.sections.length}</span>
+                    <span className="font-semibold text-white/85">
+                      {deck.sections.length}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1251,7 +1647,9 @@ function MintNftGate({
               <div className="space-y-2">
                 <p className="text-[12.5px] text-white/60">
                   Connect an Algorand wallet to sign the mint. Network:{" "}
-                  <span className="font-semibold text-purple-300">{config?.network ?? "testnet"}</span>
+                  <span className="font-semibold text-purple-300">
+                    {config?.network ?? "testnet"}
+                  </span>
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <Button
@@ -1259,7 +1657,11 @@ function MintNftGate({
                     disabled={busy}
                     className="h-11 gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-[0_10px_24px_rgba(139,92,246,0.3)]"
                   >
-                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+                    {busy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Wallet className="h-4 w-4" />
+                    )}
                     Pera
                   </Button>
                   <Button
@@ -1267,7 +1669,11 @@ function MintNftGate({
                     disabled={busy}
                     className="h-11 gap-2 rounded-xl border border-white/15 bg-white/5 text-white/85 backdrop-blur-md transition hover:bg-white/10"
                   >
-                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 text-purple-300" />}
+                    {busy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Zap className="h-4 w-4 text-purple-300" />
+                    )}
                     Defly
                   </Button>
                 </div>
@@ -1296,11 +1702,16 @@ function MintNftGate({
               disabled={busy || !config || !walletAddress}
               className="w-full gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-[0_10px_24px_rgba(139,92,246,0.3)]"
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Box className="h-4 w-4" />}
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Box className="h-4 w-4" />
+              )}
               {busy ? "Signing & confirming…" : "Mint NFT on Algorand"}
             </Button>
             <p className="text-center text-[11px] text-white/35">
-              The wallet opens to confirm the asset creation transaction — 1 of 1 supply, 0 decimals.
+              The wallet opens to confirm the asset creation transaction — 1 of
+              1 supply, 0 decimals.
             </p>
           </div>
         )}
@@ -1354,7 +1765,9 @@ function CommentSection({
         <MessageSquare className="h-4 w-4 text-emerald-300" />
         <h3 className="text-[15px] font-semibold text-white">Feedback</h3>
         <span className="text-[12px] text-white/45">
-          {comments === undefined ? "" : `· ${comments.length} comment${comments.length === 1 ? "" : "s"}`}
+          {comments === undefined
+            ? ""
+            : `· ${comments.length} comment${comments.length === 1 ? "" : "s"}`}
         </span>
       </div>
 
@@ -1405,7 +1818,9 @@ function CommentSection({
               </Avatar>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[13px] font-semibold text-white/85">{c.authorName}</span>
+                  <span className="text-[13px] font-semibold text-white/85">
+                    {c.authorName}
+                  </span>
                   <span className="text-[11px] text-white/40">
                     {new Date(c._creationTime).toLocaleDateString(undefined, {
                       month: "short",
@@ -1413,7 +1828,9 @@ function CommentSection({
                     })}
                   </span>
                 </div>
-                <p className="mt-0.5 text-[13.5px] leading-relaxed text-white/60">{c.body}</p>
+                <p className="mt-0.5 text-[13.5px] leading-relaxed text-white/60">
+                  {c.body}
+                </p>
               </div>
               <button
                 type="button"

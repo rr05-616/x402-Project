@@ -35,15 +35,20 @@ const schema = defineSchema(
       // profile settings (editable in the Settings page)
       bio: v.optional(v.string()),
       walletAddress: v.optional(v.string()), // primary Algorand wallet
-    }).index("email", ["email"]), // index for the email. do not remove or modify
+      guestCreditsUsed: v.optional(v.number()),
+      guestTransferHash: v.optional(v.string()),
+      dailyCreditsUsed: v.optional(v.number()),
+      dailyCreditsDate: v.optional(v.string()),
+    })
+      .index("email", ["email"]) // index for the email. do not remove or modify
+      .index("by_guest_transfer_hash", ["guestTransferHash"]),
 
     // pitch deck projects — one per source README
     projects: defineTable({
       ownerId: v.id("users"),
       name: v.string(), // project / repo name
       sourceMarkdown: v.string(), // the raw README text
-    })
-      .index("by_owner", ["ownerId"]),
+    }).index("by_owner", ["ownerId"]),
 
     // generated pitch decks
     decks: defineTable({
@@ -80,7 +85,11 @@ const schema = defineSchema(
         pricingStrategy: v.string(),
         gtm: v.array(v.string()),
         roadmap: v.array(
-          v.object({ phase: v.string(), timeline: v.string(), items: v.array(v.string()) }),
+          v.object({
+            phase: v.string(),
+            timeline: v.string(),
+            items: v.array(v.string()),
+          }),
         ),
         risks: v.array(v.string()),
         fundingAsk: v.string(),
@@ -108,9 +117,12 @@ const schema = defineSchema(
         ),
       }),
       template: v.optional(v.string()), // deck template id
+      slideCount: v.optional(v.number()),
+      idempotencyKey: v.optional(v.string()),
       published: v.optional(v.boolean()), // visible in the public catalog
     })
       .index("by_owner", ["ownerId"])
+      .index("by_owner_idempotency", ["ownerId", "idempotencyKey"])
       .index("by_project", ["projectId"])
       .index("by_share_code", ["shareCode"])
       .index("by_published", ["published"]),
@@ -157,7 +169,6 @@ const schema = defineSchema(
     })
       .index("by_deck", ["deckId"])
       .index("by_author", ["authorId"]),
-
   },
   {
     schemaValidation: false,

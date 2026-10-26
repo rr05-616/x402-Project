@@ -1,12 +1,24 @@
 import { BackgroundFX } from "@/components/background";
 import { Brand, BrandMark } from "@/components/brand";
 import { Button } from "@/components/ui/button";
-import { CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { useAuth } from "@/hooks/use-auth";
+import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
 import { ArrowRight, Github, Loader2, Mail, UserX } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
@@ -25,7 +37,8 @@ function resolveRedirectAfterAuth(
 }
 
 function Auth({ redirectAfterAuth }: AuthProps = {}) {
-  const { isLoading: authLoading, isAuthenticated, signIn } = useAuth();
+  const { isLoading: authLoading, isAuthenticated, signIn, user } = useAuth();
+  const claimGuestProjects = useMutation(api.decks.claimGuestProjects);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = resolveRedirectAfterAuth(
@@ -36,12 +49,40 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const transferAttempted = useRef(false);
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
+    if (authLoading || !isAuthenticated || !user) return;
+    const token = localStorage.getItem("pitchforge-guest-transfer");
+    if (!token || user.isAnonymous) {
       navigate(redirect);
+      return;
     }
-  }, [authLoading, isAuthenticated, navigate, redirect]);
+    if (transferAttempted.current) return;
+    transferAttempted.current = true;
+    setIsLoading(true);
+    void claimGuestProjects({ token })
+      .then(() => {
+        localStorage.removeItem("pitchforge-guest-transfer");
+        toast.success("Guest projects transferred to your account");
+        navigate(redirect);
+      })
+      .catch((transferError: unknown) => {
+        setError(
+          transferError instanceof Error
+            ? transferError.message
+            : "Could not transfer guest projects. Your data remains on the guest account.",
+        );
+        setIsLoading(false);
+      });
+  }, [
+    authLoading,
+    claimGuestProjects,
+    isAuthenticated,
+    navigate,
+    redirect,
+    user,
+  ]);
 
   const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -70,7 +111,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     try {
       const formData = new FormData(event.currentTarget);
       await signIn("email-otp", formData);
-      navigate(redirect);
+      if (!localStorage.getItem("pitchforge-guest-transfer"))
+        navigate(redirect);
     } catch (error) {
       console.error("OTP verification error:", error);
       setError("The verification code you entered is incorrect.");
@@ -100,7 +142,10 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setIsLoading(true);
     setError(null);
     try {
-      await signIn(provider, { redirectTo: redirect });
+      const callback = localStorage.getItem("pitchforge-guest-transfer")
+        ? `/auth?returnTo=${encodeURIComponent(redirect)}`
+        : redirect;
+      await signIn(provider, { redirectTo: callback });
     } catch (error) {
       console.error(`${provider} sign-in error:`, error);
       setError(
@@ -140,11 +185,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
               </h2>
               <ul className="mt-7 space-y-3.5">
                 {[
-                  "13 investor-ready slides from your docs",
-                  "AI enriches missing business insights",
+                  "A source-grounded 12-slide default",
+                  "No unsupported market or financial claims",
                   "Present, export as PDF or PPTX, publish to the catalog",
                 ].map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-[14px] text-white/70">
+                  <li
+                    key={item}
+                    className="flex items-start gap-3 text-[14px] text-white/70"
+                  >
                     <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-[10px] font-bold text-white">
                       ✓
                     </span>
@@ -222,7 +270,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                         <span className="w-full border-t border-white/10" />
                       </div>
                       <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-transparent px-2 text-white/40">Or with email</span>
+                        <span className="bg-transparent px-2 text-white/40">
+                          Or with email
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -254,7 +304,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                         )}
                       </Button>
                     </div>
-                    {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
+                    {error && (
+                      <p className="mt-2 text-sm text-rose-400">{error}</p>
+                    )}
 
                     <Button
                       type="button"
@@ -280,7 +332,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   </CardTitle>
                   <CardDescription className="text-[13.5px] text-white/50">
                     We&apos;ve sent a code to{" "}
-                    <span className="font-semibold text-white/80">{step.email}</span>
+                    <span className="font-semibold text-white/80">
+                      {step.email}
+                    </span>
                   </CardDescription>
                 </CardHeader>
                 <form onSubmit={handleOtpSubmit}>
@@ -295,8 +349,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                         maxLength={6}
                         disabled={isLoading}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" && otp.length === 6 && !isLoading) {
-                            const form = (e.target as HTMLElement).closest("form");
+                          if (
+                            e.key === "Enter" &&
+                            otp.length === 6 &&
+                            !isLoading
+                          ) {
+                            const form = (e.target as HTMLElement).closest(
+                              "form",
+                            );
                             if (form) form.requestSubmit();
                           }
                         }}
@@ -313,7 +373,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       </InputOTP>
                     </div>
                     {error && (
-                      <p className="mt-2 text-center text-sm text-rose-400">{error}</p>
+                      <p className="mt-2 text-center text-sm text-rose-400">
+                        {error}
+                      </p>
                     )}
                     <p className="mt-5 text-center text-sm text-white/45">
                       Didn&apos;t receive a code?{" "}

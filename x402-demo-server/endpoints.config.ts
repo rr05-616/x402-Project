@@ -22,56 +22,65 @@ export interface EndpointConfig {
   };
 }
 
-export default function createPaymentConfig(avmAddress: string): EndpointConfig {
+export default function createPaymentConfig(
+  avmAddress: string,
+  enableDeckGeneration: boolean,
+): EndpointConfig {
   const deckPrice = Number(process.env.DECK_PRICE_USD || "1.00");
-  const price = Number.isFinite(deckPrice) && deckPrice > 0
-    ? deckPrice.toFixed(6).replace(/0+$/, "").replace(/\.$/, "")
-    : "1";
+  const price =
+    Number.isFinite(deckPrice) && deckPrice > 0
+      ? deckPrice.toFixed(6).replace(/0+$/, "").replace(/\.$/, "")
+      : "1";
 
   return {
-    "POST /generate-deck": {
-      accepts: [
-        {
-          scheme: "exact",
-          price: `$${price}`,
-          network: ALGORAND_TESTNET_CAIP2,
-          payTo: avmAddress,
-          extra: { asset: Number(USDC_TESTNET_ASA_ID) },
-        },
-      ],
-      description:
-        "AI-powered investor pitch deck generation — pay per premium deck with USDC on Algorand TestNet.",
-      mimeType: "application/json",
-      extensions: declareDiscoveryExtension({
-        bodyType: "json",
-        input: {
-          repository: "your-org/your-repository",
-          projectName: "My Startup",
-          description: "One-line startup description",
-        },
-        inputSchema: {
-          type: "object",
-          properties: {
-            repository: { type: "string" },
-            projectName: { type: "string" },
-            description: { type: "string" },
-            deckId: { type: "string" },
+    ...(enableDeckGeneration
+      ? {
+          "POST /generate-deck": {
+            accepts: [
+              {
+                scheme: "exact",
+                price: `$${price}`,
+                network: ALGORAND_TESTNET_CAIP2,
+                payTo: avmAddress,
+                extra: { asset: Number(USDC_TESTNET_ASA_ID) },
+              },
+            ],
+            description:
+              "Source-grounded AI investor pitch deck generation — pay per premium deck with USDC on Algorand TestNet.",
+            mimeType: "application/json",
+            extensions: declareDiscoveryExtension({
+              bodyType: "json",
+              input: {
+                projectName: "My Startup",
+                sourceText: "Project source material",
+                slideCount: 12,
+              },
+              inputSchema: {
+                type: "object",
+                properties: {
+                  projectName: { type: "string" },
+                  description: { type: "string" },
+                  sourceText: { type: "string" },
+                  slideCount: { type: "integer", enum: [12, 13] },
+                  deckId: { type: "string" },
+                },
+                anyOf: [
+                  { required: ["description"] },
+                  { required: ["sourceText"] },
+                ],
+              },
+              output: {
+                example: {
+                  success: true,
+                  projectName: "My Startup",
+                  slideCount: 12,
+                  slides: [{ id: "slide-1", evidenceFactIds: ["fact-1"] }],
+                },
+              },
+            }),
           },
-          required: ["projectName"],
-        },
-        output: {
-          example: {
-            success: true,
-            generation: {
-              projectName: "My Startup",
-              slides: 13,
-              investorReadiness: 90,
-            },
-            paidVia: "x402 / USDC / Algorand TestNet",
-          },
-        },
-      }),
-    },
+        }
+      : {}),
 
     // Keep one template endpoint enabled so the fork visibly retains the
     // original starter-kit pattern.

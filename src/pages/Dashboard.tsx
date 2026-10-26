@@ -21,6 +21,7 @@ import {
   SAMPLE_README_RICH,
   SECTION_META,
   buildDeck,
+  findSupportedFundingAsk,
   type PitchDeck,
 } from "@/lib/deck";
 import { cn } from "@/lib/utils";
@@ -72,7 +73,13 @@ async function parseFileToText(file: File): Promise<string> {
 }
 
 /** Progress step indicator for GitHub import */
-function ProgressSteps({ steps, currentStep }: { steps: string[]; currentStep: string }) {
+function ProgressSteps({
+  steps,
+  currentStep,
+}: {
+  steps: string[];
+  currentStep: string;
+}) {
   return (
     <div className="mt-3 space-y-1.5">
       {steps.map((step, i) => {
@@ -83,13 +90,27 @@ function ProgressSteps({ steps, currentStep }: { steps: string[]; currentStep: s
             key={step}
             className={cn(
               "flex items-center gap-2 text-[12px]",
-              isActive ? "text-indigo-300" : isPast ? "text-white/50" : "text-white/30"
+              isActive
+                ? "text-indigo-300"
+                : isPast
+                  ? "text-white/50"
+                  : "text-white/30",
             )}
           >
             {isPast ? (
               <span className="grid h-4 w-4 place-items-center rounded-full bg-indigo-500/20 text-indigo-300">
-                <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                <svg
+                  className="h-2.5 w-2.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={3}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               </span>
             ) : isActive ? (
@@ -112,26 +133,27 @@ export default function Dashboard() {
   const [dragOver, setDragOver] = useState(false);
 
   const [markdown, setMarkdown] = useState("");
+  const [slideCount, setSlideCount] = useState<12 | 13>(12);
+  const selectedSlideCount: 12 | 13 =
+    slideCount === 13 && findSupportedFundingAsk(markdown) ? 13 : 12;
   const [phase, setPhase] = useState<"idle" | "transforming">("idle");
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState<"file" | "github" | null>(null);
   const [githubUrl, setGithubUrl] = useState("");
   const [githubProgress, setGithubProgress] = useState<string[]>([]);
   const [currentStep, setCurrentStep] = useState("");
+  const creationKeyRef = useRef<string | null>(null);
 
   const createDeck = useMutation(api.decks.createDeck);
   const deleteDeck = useMutation(api.decks.deleteDeck);
   const decks = useQuery(api.decks.listDecks);
+  const creditBalance = useQuery(api.decks.getCreditBalance);
   const fetchRepo = useAction(api.github.fetchGithubRepo);
 
   const analysis = useMemo(() => {
     if (markdown.trim().length < 20) return null;
-    try {
-      return buildDeck(markdown);
-    } catch {
-      return null;
-    }
-  }, [markdown]);
+    return buildDeck(markdown, selectedSlideCount);
+  }, [markdown, selectedSlideCount]);
 
   const handleFile = useCallback(async (file: File | undefined) => {
     if (!file) return;
@@ -139,7 +161,9 @@ export default function Dashboard() {
     try {
       const text = await parseFileToText(file);
       setMarkdown(text);
-      toast.success(`Imported ${file.name} (${text.length.toLocaleString()} chars)`);
+      toast.success(
+        `Imported ${file.name} (${text.length.toLocaleString()} chars)`,
+      );
     } catch (error) {
       console.error(error);
       toast.error("Could not read that file — try a .md, .txt, .pdf, or .docx");
@@ -152,7 +176,7 @@ export default function Dashboard() {
   const handleGithub = async () => {
     if (!githubUrl.trim()) return;
     setImporting("github");
-    
+
     const steps = [
       "Connecting...",
       "Fetching Repository...",
@@ -163,21 +187,21 @@ export default function Dashboard() {
       "Generating Repository Intelligence...",
       "Investor Analysis Ready",
     ];
-    
+
     setGithubProgress(steps);
     setCurrentStep(steps[0]);
-    
+
     try {
       // Simulate progress steps while the server-side action works
       for (let i = 0; i < steps.length - 3; i++) {
         setCurrentStep(steps[i]);
-        await new Promise(r => setTimeout(r, 300 + Math.random() * 200));
+        await new Promise((r) => setTimeout(r, 300 + Math.random() * 200));
       }
 
       const result = await fetchRepo({ url: githubUrl.trim() });
 
       setCurrentStep(steps[steps.length - 1]);
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 200));
 
       setMarkdown(result.content);
       if (result.notice) {
@@ -187,7 +211,9 @@ export default function Dashboard() {
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Could not fetch the repository";
+        error instanceof Error
+          ? error.message
+          : "Could not fetch the repository";
       toast.error(message, {
         duration: 6000,
         description: "You can paste your project description manually below.",
@@ -205,6 +231,11 @@ export default function Dashboard() {
       toast.error("Add a README first — a few sentences is enough to start.");
       return;
     }
+    if (!creditBalance || creditBalance.remaining === 0) {
+      toast.error("No project credits remain for this allowance period.");
+      return;
+    }
+    creationKeyRef.current = crypto.randomUUID();
     setPhase("transforming");
   };
 
@@ -213,8 +244,10 @@ export default function Dashboard() {
     setSaving(true);
     try {
       const { deckId } = await createDeck({
+        idempotencyKey: creationKeyRef.current ?? crypto.randomUUID(),
         projectName: deck.title,
         sourceMarkdown: markdown,
+        slideCount: deck.slideCount ?? 12,
         title: deck.title,
         tagline: deck.tagline,
         sections: deck.sections.map((s) => ({
@@ -230,6 +263,7 @@ export default function Dashboard() {
         readiness: deck.readiness,
         template: "glass",
       });
+      creationKeyRef.current = null;
       setPhase("idle");
       navigate(`/deck/${deckId}`);
     } catch (error) {
@@ -237,7 +271,9 @@ export default function Dashboard() {
       setSaving(false);
       setPhase("idle");
       toast.error(
-        error instanceof Error ? error.message : "Could not save the deck. Please try again.",
+        error instanceof Error
+          ? error.message
+          : "Could not save the deck. Please try again.",
       );
     }
   };
@@ -268,17 +304,19 @@ export default function Dashboard() {
               Deck studio
             </p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight text-white">
-              Forge an investor pitch from your repo
+              Build a pitch from your project source
             </h1>
             <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-white/55">
               Upload a README, Markdown, PDF, or DOCX — or paste a GitHub
-              repository — and GlassPitch AI analyzes your project, enriches
-              missing business insights, and generates a professional
-              investor presentation.
+              repository. The source analyzer uses only details in your
+              material; an AI provider is not configured in this project yet.
             </p>
           </div>
           <Link to="/decks">
-            <Button variant="outline" className="glass-soft gap-2 rounded-xl text-white/70 hover:bg-white/10">
+            <Button
+              variant="outline"
+              className="glass-soft gap-2 rounded-xl text-white/70 hover:bg-white/10"
+            >
               <Presentation className="h-4 w-4" />
               My decks
             </Button>
@@ -370,11 +408,14 @@ export default function Dashboard() {
                   Fetch
                 </Button>
               </div>
-              
+
               {/* Progress indicator */}
               {githubProgress.length > 0 && (
                 <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                  <ProgressSteps steps={githubProgress} currentStep={currentStep} />
+                  <ProgressSteps
+                    steps={githubProgress}
+                    currentStep={currentStep}
+                  />
                 </div>
               )}
 
@@ -383,7 +424,9 @@ export default function Dashboard() {
                 <textarea
                   value={markdown}
                   onChange={(e) => setMarkdown(e.target.value)}
-                  placeholder={"# My Startup\n\nWe fix the way teams…\n\n## Features\n- …"}
+                  placeholder={
+                    "# My Startup\n\nWe fix the way teams…\n\n## Features\n- …"
+                  }
                   className="h-full min-h-[240px] w-full resize-none rounded-2xl border border-white/10 bg-white/5 p-4 font-mono text-[13px] leading-relaxed text-white/85 shadow-inner backdrop-blur-md placeholder:text-white/35 focus:border-indigo-400/40 focus:outline-none focus:ring-2 focus:ring-indigo-400/20"
                   spellCheck={false}
                 />
@@ -391,7 +434,9 @@ export default function Dashboard() {
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[12px] font-medium text-white/45">Try a sample:</span>
+                  <span className="text-[12px] font-medium text-white/45">
+                    Try a sample:
+                  </span>
                   <button
                     type="button"
                     onClick={() => setMarkdown(SAMPLE_README_RICH)}
@@ -412,10 +457,62 @@ export default function Dashboard() {
                 </span>
               </div>
 
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3">
+                <div>
+                  <p className="text-[12px] font-semibold text-white/80">
+                    {creditBalance
+                      ? `${creditBalance.remaining} of ${creditBalance.allowance} project credits remaining`
+                      : "Checking project credits…"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-white/45">
+                    {creditBalance?.accountType === "guest"
+                      ? "One-time guest allowance"
+                      : creditBalance?.resetAt
+                        ? `Daily reset: ${new Date(creditBalance.resetAt).toLocaleString()}`
+                        : "Credits are deducted only when a project is created."}
+                  </p>
+                </div>
+                <label className="flex items-center gap-2 text-[12px] text-white/65">
+                  Slide count
+                  <select
+                    value={selectedSlideCount}
+                    onChange={(event) =>
+                      setSlideCount(Number(event.target.value) as 12 | 13)
+                    }
+                    className="rounded-lg border border-white/15 bg-slate-900 px-2 py-1.5 text-white"
+                  >
+                    <option value={12}>12 slides (default)</option>
+                    <option
+                      value={13}
+                      disabled={!findSupportedFundingAsk(markdown)}
+                    >
+                      13 slides (requires a sourced funding ask)
+                    </option>
+                  </select>
+                </label>
+                {creditBalance?.accountType === "guest" &&
+                  creditBalance.remaining === 0 && (
+                    <Link
+                      to="/settings"
+                      className="text-[12px] font-semibold text-emerald-300 underline-offset-2 hover:underline"
+                    >
+                      Register and keep your projects
+                    </Link>
+                  )}
+              </div>
+
               <Button
                 size="lg"
                 onClick={handleGenerate}
-                disabled={markdown.trim().length < 20 || phase === "transforming"}
+                disabled={
+                  markdown.trim().length < 20 ||
+                  phase === "transforming" ||
+                  creditBalance === undefined ||
+                  creditBalance === null ||
+                  creditBalance.remaining === 0 ||
+                  (selectedSlideCount === 13 &&
+                    !findSupportedFundingAsk(markdown))
+                }
                 className="shimmer mt-4 h-12 w-full gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-[15px] font-semibold text-white shadow-[0_14px_34px_rgba(99,102,241,0.3)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(99,102,241,0.45)] disabled:opacity-40"
               >
                 <Wand2 className="h-5 w-5" />
@@ -426,7 +523,9 @@ export default function Dashboard() {
                 to="/wallet"
                 className="mt-2.5 block text-center text-[11.5px] text-white/45 underline-offset-2 transition hover:text-indigo-300 hover:underline"
               >
-                Free plan includes 2 decks — upgrade to Founder for unlimited.
+                {creditBalance?.accountType === "guest"
+                  ? "Each new project uses one of your five guest credits."
+                  : "Registered accounts receive ten project credits per UTC day."}
               </Link>
             </div>
           </div>
@@ -439,30 +538,50 @@ export default function Dashboard() {
                   <Sparkles className="h-[18px] w-[18px]" strokeWidth={1.9} />
                 </span>
                 <div className="leading-tight">
-                  <p className="text-[15px] font-semibold text-white">Live analysis</p>
-                  <p className="text-[12px] text-white/45">What GlassPitch AI sees — updates as you type</p>
+                  <p className="text-[15px] font-semibold text-white">
+                    Source analysis
+                  </p>
+                  <p className="text-[12px] text-white/45">
+                    Extracted from your material; no AI claims are added.
+                  </p>
                 </div>
               </div>
 
               {analysis ? (
                 <div className="mt-4 flex flex-1 flex-col">
                   <div className="flex items-center gap-4">
-                    <ReadinessRing score={analysis.readiness.overall} size={116} stroke={9} label="Readiness" />
+                    <ReadinessRing
+                      score={analysis.readiness.overall}
+                      size={116}
+                      stroke={9}
+                      label="Readiness"
+                    />
                     <div className="grid flex-1 grid-cols-2 gap-2.5">
                       {[
-                        { label: "Words", value: analysis.stats.words.toLocaleString() },
-                        { label: "Lines", value: analysis.stats.lines.toLocaleString() },
+                        {
+                          label: "Words",
+                          value: analysis.stats.words.toLocaleString(),
+                        },
+                        {
+                          label: "Lines",
+                          value: analysis.stats.lines.toLocaleString(),
+                        },
                         {
                           label: "Sections",
                           value: `${analysis.stats.sectionsFound}/${analysis.sections.length}`,
                         },
-                        { label: "Slides", value: "13" },
+                        {
+                          label: "Slides",
+                          value: String(analysis.slideCount ?? 12),
+                        },
                       ].map((s) => (
                         <div
                           key={s.label}
                           className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center backdrop-blur-md"
                         >
-                          <div className="text-lg font-bold tabular-nums text-white">{s.value}</div>
+                          <div className="text-lg font-bold tabular-nums text-white">
+                            {s.value}
+                          </div>
                           <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-white/45">
                             {s.label}
                           </div>
@@ -486,7 +605,16 @@ export default function Dashboard() {
                             className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white"
                             style={{ background: meta.accent }}
                           >
-                            <SectionIcon name={section.key === "tech" ? "cpu" : section.key === "revenue" ? "line-chart" : section.key} className="h-3.5 w-3.5" />
+                            <SectionIcon
+                              name={
+                                section.key === "tech"
+                                  ? "cpu"
+                                  : section.key === "revenue"
+                                    ? "line-chart"
+                                    : section.key
+                              }
+                              className="h-3.5 w-3.5"
+                            />
                           </span>
                           <span className="flex-1 text-[13.5px] font-semibold text-white/85">
                             {section.title}
@@ -512,11 +640,14 @@ export default function Dashboard() {
                   {analysis.insights.missing.length > 0 && (
                     <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/[0.06] px-3.5 py-2.5">
                       <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-300">
-                        Suggested business assumptions
+                        Missing source details
                       </p>
                       <ul className="mt-1 space-y-1">
                         {analysis.insights.missing.slice(0, 3).map((m) => (
-                          <li key={m} className="text-[12px] leading-snug text-amber-100/70">
+                          <li
+                            key={m}
+                            className="text-[12px] leading-snug text-amber-100/70"
+                          >
                             • {m}
                           </li>
                         ))}
@@ -576,12 +707,18 @@ export default function Dashboard() {
                   key={deck._id}
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{
+                    duration: 0.4,
+                    delay: i * 0.06,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
                   className="glass glass-hover group relative overflow-hidden rounded-2xl p-5"
                 >
                   <div
                     className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-15 blur-2xl transition-opacity group-hover:opacity-30"
-                    style={{ background: deck.sections[0]?.accent ?? "#6366f1" }}
+                    style={{
+                      background: deck.sections[0]?.accent ?? "#6366f1",
+                    }}
                   />
                   <div className="relative flex h-full flex-col">
                     <div className="flex items-start justify-between gap-2">
@@ -600,13 +737,18 @@ export default function Dashboard() {
                         </AlertDialogTrigger>
                         <AlertDialogContent className="glass-strong rounded-2xl">
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Delete "{deck.title}"?</AlertDialogTitle>
+                            <AlertDialogTitle>
+                              Delete "{deck.title}"?
+                            </AlertDialogTitle>
                             <AlertDialogDescription>
-                              This removes the deck permanently. This action cannot be undone.
+                              This removes the deck permanently. This action
+                              cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel className="glass-soft rounded-xl">Cancel</AlertDialogCancel>
+                            <AlertDialogCancel className="glass-soft rounded-xl">
+                              Cancel
+                            </AlertDialogCancel>
                             <AlertDialogAction
                               className="rounded-xl bg-rose-500 text-white hover:bg-rose-600"
                               onClick={async () => {
@@ -632,7 +774,10 @@ export default function Dashboard() {
                         <span
                           key={s.key}
                           className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
-                          style={{ background: `${s.accent}1a`, color: s.accent }}
+                          style={{
+                            background: `${s.accent}1a`,
+                            color: s.accent,
+                          }}
                         >
                           {s.title}
                         </span>
@@ -640,7 +785,7 @@ export default function Dashboard() {
                     </div>
                     <div className="mt-4 flex items-center justify-between">
                       <span className="text-[11.5px] font-medium text-white/45">
-                        13 slides
+                        {deck.slideCount === 13 ? 13 : 12} slides
                       </span>
                       <Link
                         to={`/deck/${deck._id}`}

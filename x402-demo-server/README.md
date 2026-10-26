@@ -13,7 +13,7 @@ GlassPitch frontend
       v
 Hono + @x402/hono
       |
-      | no payment
+      | provider configured + no payment
       v
 HTTP 402 + PAYMENT-REQUIRED
       |
@@ -34,15 +34,29 @@ Algorand TestNet / USDC
 The current x402 v2 protocol uses `PAYMENT-REQUIRED`, `PAYMENT-SIGNATURE`, and
 `PAYMENT-RESPONSE` headers. The official SDK handles those encodings.
 
+Live AI generation uses the official OpenAI Node SDK and requires the
+server-only `OPENAI_API_KEY`. `OPENAI_MODEL` is optional and defaults to
+`gpt-4.1-mini`. The server validates source quotations, slide count, layouts,
+and evidence references before returning content. No provider credentials are
+stored in this repository. If a key is not configured, `/generate-deck` is not
+payment-protected and returns HTTP 503; the frontend's local source-based
+generation remains available.
+
+The unused legacy `handlers/meme-generator.ts` module imports native
+`canvas`, but no server route imports or exposes it. The core server TypeScript
+build excludes that optional module so deployments do not need native Cairo
+build dependencies; wiring that feature into a route requires separately
+installing and validating `canvas` for the target platform.
+
 ## Endpoints
 
-| Endpoint | Price | Purpose |
-|---|---:|---|
-| `POST /generate-deck` | $1.00 USDC | GlassPitch premium pitch-deck generation |
-| `GET /weather` | $0.005 USDC | Starter-kit demonstration endpoint |
-| `GET /health` | Free | Health check |
-| `GET /info` | Free | Service information |
-| `GET /` | Free | Service status |
+| Endpoint              |                                  Price | Purpose                                       |
+| --------------------- | -------------------------------------: | --------------------------------------------- |
+| `POST /generate-deck` | $1.00 USDC when provider is configured | Source-grounded premium pitch-deck generation |
+| `GET /weather`        |                            $0.005 USDC | Starter-kit demonstration endpoint            |
+| `GET /health`         |                                   Free | Health check                                  |
+| `GET /info`           |                                   Free | Service information                           |
+| `GET /`               |                                   Free | Service status                                |
 
 ## Local setup
 
@@ -59,7 +73,15 @@ AVM_ADDRESS=YOUR_ALGORAND_TESTNET_RECEIVER
 FACILITATOR_URL=https://facilitator.goplausible.xyz
 PORT=4021
 DECK_PRICE_USD=1.00
+OPENAI_API_KEY=YOUR_SERVER_SIDE_API_KEY
+OPENAI_MODEL=gpt-4.1-mini
 ```
+
+Keep the API key on the server and never expose it through a frontend `VITE_*`
+variable. Requests have a 45-second timeout and do not retry automatically.
+Invalid keys, exhausted quota, rate limits, timeouts, and provider outages
+return sanitized errors. A 13-slide deck requires an explicit funding amount
+in the source; otherwise generation is capped at 12 slides.
 
 Run:
 
@@ -73,12 +95,14 @@ Check:
 curl http://localhost:4021/health
 ```
 
-A request without payment should return `402`:
+A request without payment returns `402` only when the OpenAI key is configured.
+Without a key, the endpoint returns `503` and does not request payment.
+Include source material in the request:
 
 ```bash
 curl -i -X POST http://localhost:4021/generate-deck ^
   -H "Content-Type: application/json" ^
-  -d "{\"projectName\":\"GlassPitch Demo\"}"
+  -d "{\"projectName\":\"GlassPitch Demo\",\"description\":\"Describe the project using only facts that should appear in the deck.\"}"
 ```
 
 ## Deployment

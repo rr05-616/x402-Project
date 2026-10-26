@@ -1,4 +1,8 @@
-import { AuroraBlobs, BackgroundFX, ParticleField } from "@/components/background";
+import {
+  AuroraBlobs,
+  BackgroundFX,
+  ParticleField,
+} from "@/components/background";
 import { Brand, BrandMark } from "@/components/brand";
 import { SlideContent } from "@/components/deck/slides";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +15,12 @@ import {
   type SectionKey,
 } from "@/lib/deck";
 import { cn } from "@/lib/utils";
-import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
+import {
+  AnimatePresence,
+  motion,
+  useScroll,
+  useTransform,
+} from "framer-motion";
 import {
   ArrowRight,
   BarChart3,
@@ -51,23 +60,23 @@ const FEATURES: { icon: LucideIcon; title: string; copy: string }[] = [
   },
   {
     icon: Wand2,
-    title: "AI enriches your business story",
-    copy: "Beyond extraction: executive summary, elevator pitch, TAM/SAM/SOM, pricing, go-to-market, roadmap, risks, and a funding ask — flagged for review.",
+    title: "Project-specific, source-grounded summaries",
+    copy: "The current generator uses only details present in your source and labels missing information instead of inventing market, financial, traction, or funding claims.",
   },
   {
     icon: Gauge,
-    title: "Investor readiness score",
-    copy: "Six scored dimensions — innovation, technology, business, scalability, market, presentation — rolled into one animated readiness ring.",
+    title: "Rule-based readiness estimate",
+    copy: "A transparent heuristic based on source coverage. It is an estimate, not market research or a verified investment rating.",
   },
   {
     icon: Presentation,
-    title: "A 13-slide deck that presents itself",
-    copy: "Cover, Problem, Solution, Product, Market, Technology, Business Model, Competitors, GTM, Roadmap, Financials, Ask, and Thank You — keyboard-navigable.",
+    title: "A 12-slide default, 13-slide maximum",
+    copy: "The optional 13th slide is available only when the supplied source includes a specific funding amount.",
   },
   {
     icon: Mic,
-    title: "AI voice pitch",
-    copy: "Generate a narrated 30-second, 60-second, or 3-minute pitch read aloud — perfect for practice runs before the real room.",
+    title: "Voice pitch practice",
+    copy: "Use browser text-to-speech to rehearse a 30-second, 60-second, or 3-minute version of the saved deck.",
   },
   {
     icon: Palette,
@@ -98,9 +107,21 @@ const STEPS = [
 ];
 
 const AI_FEATURES: { icon: LucideIcon; title: string; copy: string }[] = [
-  { icon: FileText, title: "Extract", copy: "Project name, problem, solution, features, audience, stack, architecture, APIs, and future scope — straight from your docs." },
-  { icon: TrendingUp, title: "Generate", copy: "Executive summary, business model, market opportunity, TAM/SAM/SOM, competitor analysis, pricing, GTM, risks, and the ask." },
-  { icon: Gauge, title: "Detect & suggest", copy: "Missing sections are flagged and replaced with sensible business assumptions — honest AI, clearly labeled." },
+  {
+    icon: FileText,
+    title: "Extract",
+    copy: "Project name, problem, solution, features, audience, stack, architecture, APIs, and future scope — straight from your docs.",
+  },
+  {
+    icon: TrendingUp,
+    title: "Generate",
+    copy: "Executive summary, business model, market opportunity, TAM/SAM/SOM, competitor analysis, pricing, GTM, risks, and the ask.",
+  },
+  {
+    icon: Gauge,
+    title: "Detect & suggest",
+    copy: "Missing sections are flagged and replaced with sensible business assumptions — honest AI, clearly labeled.",
+  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -111,7 +132,10 @@ type DemoPhase = "readme" | "cards" | "cover";
 
 function HeroDemo() {
   const [phase, setPhase] = useState<DemoPhase>("readme");
-  const demoLines = useMemo(() => SAMPLE_README_RICH.split("\n").slice(0, 8), []);
+  const demoLines = useMemo(
+    () => SAMPLE_README_RICH.split("\n").slice(0, 8),
+    [],
+  );
 
   useEffect(() => {
     const timers = [
@@ -151,7 +175,13 @@ function HeroDemo() {
                 </div>
                 <div className="mt-4 space-y-1.5 font-mono text-[10px] leading-relaxed text-white/45">
                   {demoLines.map((line, i) => (
-                    <div key={i} className={cn("whitespace-pre-wrap truncate", i > 3 && "opacity-25")}>
+                    <div
+                      key={i}
+                      className={cn(
+                        "whitespace-pre-wrap truncate",
+                        i > 3 && "opacity-25",
+                      )}
+                    >
                       {line.slice(0, 52) || " "}
                     </div>
                   ))}
@@ -159,7 +189,8 @@ function HeroDemo() {
                 <div
                   className="pointer-events-none absolute inset-x-4 h-6"
                   style={{
-                    background: "linear-gradient(180deg, transparent, rgba(0,168,107,0.25), transparent)",
+                    background:
+                      "linear-gradient(180deg, transparent, rgba(0,168,107,0.25), transparent)",
                     animation: "scan-line 1.6s ease-in-out infinite alternate",
                   }}
                 />
@@ -179,7 +210,8 @@ function HeroDemo() {
               {SECTION_ORDER.map((key, i) => {
                 const meta = SECTION_META[key];
                 const Icon = SECTION_ICONS[key];
-                const angle = (i / SECTION_ORDER.length) * Math.PI * 2 - Math.PI / 2;
+                const angle =
+                  (i / SECTION_ORDER.length) * Math.PI * 2 - Math.PI / 2;
                 const x = Math.cos(angle) * 78;
                 const y = Math.sin(angle) * 58;
                 return (
@@ -206,12 +238,17 @@ function HeroDemo() {
                       <div className="flex items-center gap-2">
                         <span
                           className="grid h-7 w-7 place-items-center rounded-lg text-white"
-                          style={{ background: meta.accent, boxShadow: `0 0 14px ${meta.accent}55` }}
+                          style={{
+                            background: meta.accent,
+                            boxShadow: `0 0 14px ${meta.accent}55`,
+                          }}
                         >
                           <Icon className="h-3.5 w-3.5" />
                         </span>
                         <div className="leading-tight">
-                          <div className="text-[11px] font-bold text-white/85">{meta.title}</div>
+                          <div className="text-[11px] font-bold text-white/85">
+                            {meta.title}
+                          </div>
                           <div className="text-[9px] uppercase tracking-wider text-white/45">
                             {meta.eyebrow}
                           </div>
@@ -242,7 +279,10 @@ function HeroDemo() {
               >
                 <div
                   className="absolute inset-0 opacity-25"
-                  style={{ background: "linear-gradient(135deg,#00A86B,#00E08F,#5eead4)" }}
+                  style={{
+                    background:
+                      "linear-gradient(135deg,#00A86B,#00E08F,#5eead4)",
+                  }}
                 />
                 <div className="relative flex h-full flex-col items-center justify-center px-8 text-center">
                   <BrandMark className="h-9 w-9" />
@@ -278,7 +318,9 @@ function HeroDemo() {
               )}
             />
           ))}
-          <span className="ml-2 text-[10px] font-medium text-white/45">live demo</span>
+          <span className="ml-2 text-[10px] font-medium text-white/45">
+            live demo
+          </span>
         </div>
       </div>
     </div>
@@ -335,7 +377,10 @@ export default function Landing() {
           </nav>
           <div className="flex items-center gap-2">
             <Link to="/auth">
-              <Button variant="ghost" className="rounded-xl text-[13.5px] font-medium text-white/70 hover:bg-white/10 hover:text-white">
+              <Button
+                variant="ghost"
+                className="rounded-xl text-[13.5px] font-medium text-white/70 hover:bg-white/10 hover:text-white"
+              >
                 Sign in
               </Button>
             </Link>
@@ -424,7 +469,12 @@ export default function Landing() {
             transition={{ duration: 0.8, delay: 0.45 }}
             className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px] font-medium text-white/50"
           >
-            {["13 slides in seconds", "AI readiness score", "PDF · PPTX · share link", "Free plan: 2 decks"].map((t) => (
+            {[
+              "12-slide default · 13 max",
+              "Source-grounded project summaries",
+              "PDF · editable PPTX · share link",
+              "5 guest · 10 daily credits",
+            ].map((t) => (
               <span key={t} className="flex items-center gap-1.5">
                 <Check className="h-4 w-4 text-emerald-400" strokeWidth={2.5} />
                 {t}
@@ -478,7 +528,10 @@ export default function Landing() {
                     >
                       <span
                         className="grid h-5 w-5 place-items-center rounded-md text-white"
-                        style={{ background: meta.accent, boxShadow: `0 0 12px ${meta.accent}44` }}
+                        style={{
+                          background: meta.accent,
+                          boxShadow: `0 0 12px ${meta.accent}44`,
+                        }}
                       >
                         <Icon className="h-3 w-3" />
                       </span>
@@ -493,7 +546,10 @@ export default function Landing() {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="relative z-10 mx-auto max-w-6xl scroll-mt-8 px-4 py-24 sm:px-6">
+      <section
+        id="how-it-works"
+        className="relative z-10 mx-auto max-w-6xl scroll-mt-8 px-4 py-24 sm:px-6"
+      >
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -505,7 +561,8 @@ export default function Landing() {
             How it works
           </Badge>
           <h2 className="mx-auto mt-5 max-w-2xl text-4xl font-bold tracking-tight text-white">
-            From raw docs to pitch-ready in <span className="text-gradient">three moves</span>
+            From raw docs to pitch-ready in{" "}
+            <span className="text-gradient">three moves</span>
           </h2>
         </motion.div>
 
@@ -516,21 +573,32 @@ export default function Landing() {
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-60px" }}
-              transition={{ duration: 0.55, delay: i * 0.12, ease: [0.22, 1, 0.36, 1] }}
+              transition={{
+                duration: 0.55,
+                delay: i * 0.12,
+                ease: [0.22, 1, 0.36, 1],
+              }}
               className="glass glass-hover group relative overflow-hidden p-7"
             >
               <div className="shimmer pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
               <div className="relative">
                 <div className="flex items-center justify-between">
                   <span className="glass-soft grid h-12 w-12 place-items-center rounded-2xl text-emerald-300">
-                    <step.icon className="h-[22px] w-[22px]" strokeWidth={1.8} />
+                    <step.icon
+                      className="h-[22px] w-[22px]"
+                      strokeWidth={1.8}
+                    />
                   </span>
                   <span className="text-[44px] font-black leading-none text-white/5 transition-colors duration-300 group-hover:text-emerald-400/10">
                     {step.step}
                   </span>
                 </div>
-                <h3 className="mt-5 text-lg font-semibold text-white">{step.title}</h3>
-                <p className="mt-2 text-[14px] leading-relaxed text-white/55">{step.copy}</p>
+                <h3 className="mt-5 text-lg font-semibold text-white">
+                  {step.title}
+                </h3>
+                <p className="mt-2 text-[14px] leading-relaxed text-white/55">
+                  {step.copy}
+                </p>
               </div>
             </motion.div>
           ))}
@@ -538,7 +606,10 @@ export default function Landing() {
       </section>
 
       {/* AI features */}
-      <section id="features" className="relative z-10 mx-auto max-w-6xl scroll-mt-8 px-4 pb-24 sm:px-6">
+      <section
+        id="features"
+        className="relative z-10 mx-auto max-w-6xl scroll-mt-8 px-4 pb-24 sm:px-6"
+      >
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -550,7 +621,8 @@ export default function Landing() {
             AI Features
           </Badge>
           <h2 className="mx-auto mt-5 max-w-2xl text-4xl font-bold tracking-tight text-white">
-            An AI that <span className="text-gradient">thinks like an analyst</span>
+            An AI that{" "}
+            <span className="text-gradient">thinks like an analyst</span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
             Every slide, score, and suggestion is generated from your docs —
@@ -565,14 +637,22 @@ export default function Landing() {
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
-              transition={{ duration: 0.5, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] }}
+              transition={{
+                duration: 0.5,
+                delay: i * 0.1,
+                ease: [0.22, 1, 0.36, 1],
+              }}
               className="glass glass-hover group relative overflow-hidden p-6"
             >
               <span className="glass-soft grid h-11 w-11 place-items-center rounded-xl text-emerald-300 transition-transform duration-300 group-hover:scale-110">
                 <f.icon className="h-5 w-5" strokeWidth={1.9} />
               </span>
-              <h3 className="mt-4 text-[16.5px] font-semibold text-white">{f.title}</h3>
-              <p className="mt-2 text-[13.5px] leading-relaxed text-white/55">{f.copy}</p>
+              <h3 className="mt-4 text-[16.5px] font-semibold text-white">
+                {f.title}
+              </h3>
+              <p className="mt-2 text-[13.5px] leading-relaxed text-white/55">
+                {f.copy}
+              </p>
             </motion.div>
           ))}
         </div>
@@ -584,21 +664,32 @@ export default function Landing() {
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
-              transition={{ duration: 0.5, delay: (i % 3) * 0.1, ease: [0.22, 1, 0.36, 1] }}
+              transition={{
+                duration: 0.5,
+                delay: (i % 3) * 0.1,
+                ease: [0.22, 1, 0.36, 1],
+              }}
               className="glass glass-hover group relative overflow-hidden p-6"
             >
               <span className="glass-soft grid h-11 w-11 place-items-center rounded-xl text-emerald-300 transition-transform duration-300 group-hover:scale-110">
                 <f.icon className="h-5 w-5" strokeWidth={1.9} />
               </span>
-              <h3 className="mt-4 text-[16.5px] font-semibold text-white">{f.title}</h3>
-              <p className="mt-2 text-[13.5px] leading-relaxed text-white/55">{f.copy}</p>
+              <h3 className="mt-4 text-[16.5px] font-semibold text-white">
+                {f.title}
+              </h3>
+              <p className="mt-2 text-[13.5px] leading-relaxed text-white/55">
+                {f.copy}
+              </p>
             </motion.div>
           ))}
         </div>
       </section>
 
       {/* Showcase — real slides */}
-      <section id="showcase" className="relative z-10 mx-auto max-w-6xl scroll-mt-8 px-4 pb-24 sm:px-6">
+      <section
+        id="showcase"
+        className="relative z-10 mx-auto max-w-6xl scroll-mt-8 px-4 pb-24 sm:px-6"
+      >
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -610,7 +701,8 @@ export default function Landing() {
             Showcase
           </Badge>
           <h2 className="mx-auto mt-5 max-w-2xl text-4xl font-bold tracking-tight text-white">
-            Forged from a README, <span className="text-gradient">zero hand-holding</span>
+            Forged from a README,{" "}
+            <span className="text-gradient">zero hand-holding</span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
             Real slides from the sample deck — a liquid-restaking protocol.
@@ -628,7 +720,14 @@ export default function Landing() {
                       className="overflow-hidden rounded-xl shadow-[0_18px_44px_rgba(0,0,0,0.5)] ring-1 ring-white/10"
                       style={{ width: 560 * 0.42, height: 315 * 0.42 }}
                     >
-                      <div style={{ transform: "scale(0.42)", transformOrigin: "top left", width: 560, height: 315 }}>
+                      <div
+                        style={{
+                          transform: "scale(0.42)",
+                          transformOrigin: "top left",
+                          width: 560,
+                          height: 315,
+                        }}
+                      >
                         <SlideContent
                           deck={showcaseDeck}
                           slide={{ kind: "section", section }}
@@ -658,7 +757,10 @@ export default function Landing() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="relative z-10 mx-auto max-w-6xl scroll-mt-8 px-4 pb-24 sm:px-6">
+      <section
+        id="pricing"
+        className="relative z-10 mx-auto max-w-6xl scroll-mt-8 px-4 pb-24 sm:px-6"
+      >
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -670,7 +772,10 @@ export default function Landing() {
             Pricing
           </Badge>
           <h2 className="mx-auto mt-5 max-w-2xl text-4xl font-bold tracking-tight text-white">
-            Start free. <span className="text-gradient">Upgrade when you&apos;re raising.</span>
+            Start free.{" "}
+            <span className="text-gradient">
+              Upgrade when you&apos;re raising.
+            </span>
           </h2>
         </motion.div>
 
@@ -683,21 +788,36 @@ export default function Landing() {
             className="glass glass-hover relative flex flex-col p-8"
           >
             <h3 className="text-lg font-semibold text-white">Hacker</h3>
-            <p className="mt-1 text-[13px] text-white/55">For the demo-day MVP</p>
+            <p className="mt-1 text-[13px] text-white/55">
+              For the demo-day MVP
+            </p>
             <div className="mt-5 flex items-baseline gap-1">
-              <span className="text-4xl font-bold tracking-tight text-white">$0</span>
+              <span className="text-4xl font-bold tracking-tight text-white">
+                $0
+              </span>
               <span className="text-[13px] text-white/45">forever</span>
             </div>
             <ul className="mt-6 flex-1 space-y-2.5 text-[13.5px] text-white/70">
-              {["2 pitch decks", "PDF export", "Share links", "Comment on any deck"].map((f) => (
+              {[
+                "2 pitch decks",
+                "PDF export",
+                "Share links",
+                "Comment on any deck",
+              ].map((f) => (
                 <li key={f} className="flex items-center gap-2.5">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" strokeWidth={2.5} />
+                  <Check
+                    className="h-4 w-4 shrink-0 text-emerald-400"
+                    strokeWidth={2.5}
+                  />
                   {f}
                 </li>
               ))}
             </ul>
             <Link to="/auth?returnTo=/dashboard" className="mt-7">
-              <Button variant="outline" className="glass-soft w-full rounded-xl text-white/80 hover:bg-white/10">
+              <Button
+                variant="outline"
+                className="glass-soft w-full rounded-xl text-white/80 hover:bg-white/10"
+              >
                 Start free
               </Button>
             </Link>
@@ -714,15 +834,27 @@ export default function Landing() {
               One-time
             </Badge>
             <h3 className="text-lg font-semibold text-white">Founder</h3>
-            <p className="mt-1 text-[13px] text-white/55">For teams actually raising</p>
+            <p className="mt-1 text-[13px] text-white/55">
+              For teams actually raising
+            </p>
             <div className="mt-5 flex items-baseline gap-1">
-              <span className="text-4xl font-bold tracking-tight text-white">$19</span>
+              <span className="text-4xl font-bold tracking-tight text-white">
+                $19
+              </span>
               <span className="text-[13px] text-white/45">one-time</span>
             </div>
             <ul className="mt-6 flex-1 space-y-2.5 text-[13.5px] text-white/80">
-              {["Unlimited pitch decks", "Publish to the catalog", "Premium crypto exports", "AI voice pitch & templates"].map((f) => (
+              {[
+                "Unlimited pitch decks",
+                "Publish to the catalog",
+                "Premium crypto exports",
+                "AI voice pitch & templates",
+              ].map((f) => (
                 <li key={f} className="flex items-center gap-2.5">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-300" strokeWidth={2.5} />
+                  <Check
+                    className="h-4 w-4 shrink-0 text-emerald-300"
+                    strokeWidth={2.5}
+                  />
                   {f}
                 </li>
               ))}
@@ -794,10 +926,18 @@ export default function Landing() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-4 sm:flex-row sm:px-6">
           <Brand />
           <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] font-medium text-white/55">
-            <Link to="/catalog" className="transition hover:text-white">Catalog</Link>
-            <a href="#how-it-works" className="transition hover:text-white">How it works</a>
-            <a href="#pricing" className="transition hover:text-white">Pricing</a>
-            <Link to="/auth" className="transition hover:text-white">Sign in</Link>
+            <Link to="/catalog" className="transition hover:text-white">
+              Catalog
+            </Link>
+            <a href="#how-it-works" className="transition hover:text-white">
+              How it works
+            </a>
+            <a href="#pricing" className="transition hover:text-white">
+              Pricing
+            </a>
+            <Link to="/auth" className="transition hover:text-white">
+              Sign in
+            </Link>
           </nav>
           <p className="text-[12px] text-white/40">
             Secured by{" "}

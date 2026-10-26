@@ -57,24 +57,41 @@ interface PptxGenLike {
   author: string;
   title: string;
   addSlide(): PptxSlide;
-  writeFile(opts: { fileName: string }): Promise<unknown>;
+  write(opts: {
+    outputType: "blob";
+  }): Promise<Blob | ArrayBuffer | Uint8Array | string>;
 }
 
-const EMERALD = "00A86B";
-const WHITE = "FFFFFF";
-const BODY = "E4E4E7";
-const MUTED = "A1A1AA";
+const TEMPLATE_BACKGROUNDS: Record<string, string> = {
+  glass: "10111D",
+  apple: "F8FAFC",
+  yc: "1C130E",
+  sequoia: "1A1012",
+  "startup-dark": "11140F",
+  minimal: "141414",
+  amber: "17140E",
+  rose: "1A1115",
+  ocean: "0E151A",
+  violet: "14101D",
+  sunset: "1B120E",
+  teal: "0E1716",
+  midnight: "0E131C",
+  forest: "10170F",
+  slate: "111315",
+  coral: "1A1214",
+  electric: "0D1619",
+};
 
 /** Tolerate ragged/legacy deck data that predates the current schema. */
 function safe<T>(value: T | null | undefined, fallback: T): T {
   return value === null || value === undefined ? fallback : value;
 }
-const arr = <T,>(value: T[] | null | undefined): T[] => safe(value, []);
+const arr = <T>(value: T[] | null | undefined): T[] => safe(value, []);
 const str = (value: string | null | undefined, fallback = ""): string =>
   typeof value === "string" && value.length > 0 ? value : fallback;
 
-/** Export the deck as a .pptx file and trigger a download. */
-export async function exportPptx(deck: PitchDeck): Promise<void> {
+/** Build and validate an editable .pptx Blob from the saved deck model. */
+export async function createPptxBlob(deck: PitchDeck): Promise<Blob> {
   const mod = (await import("pptxgenjs")) as unknown as {
     default: new () => PptxGenLike;
   };
@@ -86,8 +103,21 @@ export async function exportPptx(deck: PitchDeck): Promise<void> {
 
   const t = getTemplate(deck.template ?? "glass");
   const accent = (t.accent ?? "#00A86B").replace("#", "");
+  const foreground = t.dark ? "FFFFFF" : "111827";
+  const bodyColor = t.dark ? "E4E4E7" : "27272A";
+  const mutedColor = t.dark ? "A1A1AA" : "52525B";
+  const background =
+    TEMPLATE_BACKGROUNDS[t.id] ?? (t.dark ? "101313" : "F8FAFC");
+  const accentColor = accent;
+  const accent2 = (t.accent2 ?? t.accent).replace("#", "");
   const slides = deckSlides(deck);
   const total = slides.length;
+  const expectedSlideCount = deck.slideCount === 13 ? 13 : 12;
+  if (total !== expectedSlideCount || total > 13) {
+    throw new Error(
+      `Deck has ${total} slides; expected ${expectedSlideCount}.`,
+    );
+  }
 
   // Legacy/ragged decks may be missing insights — normalize once up front.
   const insights = safe(deck.insights, {
@@ -124,17 +154,26 @@ export async function exportPptx(deck: PitchDeck): Promise<void> {
   const addBullets = (
     sl: PptxSlide,
     body: string[],
-    opts: { x?: number; y?: number; w?: number; h?: number; fontSize?: number } = {},
+    opts: {
+      x?: number;
+      y?: number;
+      w?: number;
+      h?: number;
+      fontSize?: number;
+    } = {},
   ) => {
     sl.addText(
-      arr(body).map((b) => ({ text: b, options: { bullet: { code: "25AA", indent: 12 } } })),
+      arr(body).map((b) => ({
+        text: b,
+        options: { bullet: { code: "25AA", indent: 12 } },
+      })),
       {
         x: opts.x ?? 0.9,
         y: opts.y ?? 2.4,
         w: opts.w ?? 11.5,
         h: opts.h ?? 4.2,
         fontSize: opts.fontSize ?? 16,
-        color: BODY,
+        color: bodyColor,
         valign: "top",
         breakLine: false,
       },
@@ -143,8 +182,21 @@ export async function exportPptx(deck: PitchDeck): Promise<void> {
 
   const addPageFrame = (sl: PptxSlide, i: number) => {
     // background + emerald top accent
-    sl.background = { color: "0A0A0A" };
-    sl.addShape("rect", { x: 0, y: 0, w: 13.33, h: 0.12, fill: { color: accent } });
+    sl.background = { color: background };
+    sl.addShape("rect", {
+      x: 0,
+      y: 0,
+      w: 13.33,
+      h: 0.12,
+      fill: { color: accent },
+    });
+    sl.addShape("rect", {
+      x: 0,
+      y: 0.12,
+      w: 13.33,
+      h: 0.04,
+      fill: { color: accent2 },
+    });
     sl.addShape("roundRect", {
       x: 0.7,
       y: 0.6,
@@ -160,19 +212,27 @@ export async function exportPptx(deck: PitchDeck): Promise<void> {
       w: 2.1,
       h: 0.4,
       fontSize: 12,
-      color: WHITE,
+      color: foreground,
       align: "center",
       bold: true,
       charSpacing: 2,
     });
     // real per-slide numbering
-    sl.addText([{ text: String(i + 1).padStart(2, "0"), options: { fontSize: 36, bold: true, color: "3F3F46" } }], {
-      x: 11.4,
-      y: 0.35,
-      w: 1.2,
-      h: 0.9,
-      align: "right",
-    });
+    sl.addText(
+      [
+        {
+          text: String(i + 1).padStart(2, "0"),
+          options: { fontSize: 36, bold: true, color: "3F3F46" },
+        },
+      ],
+      {
+        x: 11.4,
+        y: 0.35,
+        w: 1.2,
+        h: 0.9,
+        align: "right",
+      },
+    );
     sl.addText(`/ ${String(total).padStart(2, "0")}`, {
       x: 11.4,
       y: 1.05,
@@ -204,7 +264,7 @@ export async function exportPptx(deck: PitchDeck): Promise<void> {
         h: 1.6,
         fontSize: 44,
         bold: true,
-        color: WHITE,
+        color: foreground,
         align: "center",
         fontFace: "Arial",
       });
@@ -214,22 +274,36 @@ export async function exportPptx(deck: PitchDeck): Promise<void> {
         w: 8.9,
         h: 1.2,
         fontSize: 18,
-        color: MUTED,
+        color: mutedColor,
         align: "center",
       });
       sl.addText(
-        arr(deck.sections).map((s) => ({ text: str(s.title), options: { breakLine: true } })),
-        { x: 2.2, y: 5.1, w: 8.9, h: 1.4, fontSize: 13, color: EMERALD, align: "center" },
+        arr(deck.sections).map((s) => ({
+          text: str(s.title),
+          options: { breakLine: true },
+        })),
+        {
+          x: 2.2,
+          y: 5.1,
+          w: 8.9,
+          h: 1.4,
+          fontSize: 13,
+          color: accentColor,
+          align: "center",
+        },
       );
-      sl.addText(`Investor Readiness ${overallScore}/100 · ${(stats.words ?? 0).toLocaleString()} words distilled`, {
-        x: 2.2,
-        y: 6.6,
-        w: 8.9,
-        h: 0.5,
-        fontSize: 13,
-        color: MUTED,
-        align: "center",
-      });
+      sl.addText(
+        `Readiness estimate ${overallScore}/100 · ${(stats.words ?? 0).toLocaleString()} source words`,
+        {
+          x: 2.2,
+          y: 6.6,
+          w: 8.9,
+          h: 0.5,
+          fontSize: 13,
+          color: mutedColor,
+          align: "center",
+        },
+      );
       return;
     }
 
@@ -241,7 +315,7 @@ export async function exportPptx(deck: PitchDeck): Promise<void> {
         h: 1.2,
         fontSize: 40,
         bold: true,
-        color: WHITE,
+        color: foreground,
         align: "center",
       });
       sl.addText(str(ins.fundingAsk, ""), {
@@ -250,25 +324,48 @@ export async function exportPptx(deck: PitchDeck): Promise<void> {
         w: 8.9,
         h: 1,
         fontSize: 18,
-        color: MUTED,
+        color: mutedColor,
         align: "center",
       });
 
       // Readiness metrics breakdown
-      const metrics = readinessMetrics.map(
-        (m) => ({ text: `${m.label}: ${m.score}/100  —  ${m.note}`, options: { breakLine: true, fontSize: 14, color: BODY } }),
+      const metrics = readinessMetrics.map((m) => ({
+        text: `${m.label}: ${m.score}/100  —  ${m.note}`,
+        options: { breakLine: true, fontSize: 14, color: bodyColor },
+      }));
+      sl.addText(
+        [
+          {
+            text: `Rule-based readiness estimate ${overallScore}/100`,
+            options: {
+              breakLine: true,
+              fontSize: 20,
+              bold: true,
+              color: accentColor,
+            },
+          },
+          ...metrics,
+        ],
+        {
+          x: 1.7,
+          y: 4.2,
+          w: 9.9,
+          h: 2.2,
+          align: "center",
+          valign: "top",
+        },
       );
-      sl.addText([{ text: `Investor Readiness ${overallScore}/100`, options: { breakLine: true, fontSize: 20, bold: true, color: EMERALD } }, ...metrics], {
-        x: 1.7,
-        y: 4.2,
-        w: 9.9,
-        h: 2.2,
-        align: "center",
-        valign: "top",
-      });
       sl.addText(
         `${stats.sectionsFound ?? 0}/6 story sections found in your docs · ${(stats.lines ?? 0).toLocaleString()} lines analyzed`,
-        { x: 2.2, y: 6.7, w: 8.9, h: 0.4, fontSize: 12, color: "71717A", align: "center" },
+        {
+          x: 2.2,
+          y: 6.7,
+          w: 8.9,
+          h: 0.4,
+          fontSize: 12,
+          color: "71717A",
+          align: "center",
+        },
       );
       return;
     }
@@ -301,7 +398,7 @@ export async function exportPptx(deck: PitchDeck): Promise<void> {
         h: 0.9,
         fontSize: 32,
         bold: true,
-        color: WHITE,
+        color: foreground,
       });
       // Technology → render the real extracted stack as chips, bullets below
       if (section.key === "tech") {
@@ -330,17 +427,27 @@ export async function exportPptx(deck: PitchDeck): Promise<void> {
               h: 0.46,
               fontSize: 14,
               bold: true,
-              color: EMERALD,
+              color: accentColor,
               align: "center",
               valign: "middle",
             });
           });
-          addBullets(sl, arr(section.bullets), { x: 6.7, y: 1.7 + rows * 0.75 + 0.25, w: 5.7, fontSize: 14 });
+          addBullets(sl, arr(section.bullets), {
+            x: 6.7,
+            y: 1.7 + rows * 0.75 + 0.25,
+            w: 5.7,
+            fontSize: 14,
+          });
         } else {
-          addBullets(sl, arr(section.bullets), { x: 6.9, y: 1.65, w: 5.6, fontSize: 15 });
+          addBullets(sl, arr(section.bullets), {
+            x: 6.9,
+            y: 1.65,
+            w: 5.6,
+            fontSize: 15,
+          });
         }
         if (section.derived) {
-          sl.addText("AI-DERIVED", {
+          sl.addText("NOT PROVIDED IN SOURCE", {
             x: 0.9,
             y: 6.8,
             w: 2.4,
@@ -369,25 +476,92 @@ export async function exportPptx(deck: PitchDeck): Promise<void> {
             rectRadius: 0.12,
           });
           const rows: PptxTextItem[] = [
-            { text: str(card.name), options: { breakLine: true, fontSize: 15, bold: true, color: WHITE } },
-            { text: str(card.category), options: { breakLine: true, fontSize: 11, color: EMERALD, charSpacing: 1 } },
+            {
+              text: str(card.name),
+              options: {
+                breakLine: true,
+                fontSize: 15,
+                bold: true,
+                color: foreground,
+              },
+            },
+            {
+              text: str(card.category),
+              options: {
+                breakLine: true,
+                fontSize: 11,
+                color: accentColor,
+                charSpacing: 1,
+              },
+            },
             { text: " ", options: { breakLine: true, fontSize: 6 } },
-            { text: "STRENGTHS", options: { breakLine: true, fontSize: 9, bold: true, color: "86efac", charSpacing: 1 } },
-            ...arr(card.strengths).slice(0, 3).map((s) => ({ text: `• ${s}`, options: { breakLine: true, fontSize: 11, color: BODY } })),
+            {
+              text: "STRENGTHS",
+              options: {
+                breakLine: true,
+                fontSize: 9,
+                bold: true,
+                color: "86efac",
+                charSpacing: 1,
+              },
+            },
+            ...arr(card.strengths)
+              .slice(0, 3)
+              .map((s) => ({
+                text: `• ${s}`,
+                options: { breakLine: true, fontSize: 11, color: bodyColor },
+              })),
             { text: " ", options: { breakLine: true, fontSize: 6 } },
-            { text: "WEAKNESSES", options: { breakLine: true, fontSize: 9, bold: true, color: "FCA5A5", charSpacing: 1 } },
-            ...arr(card.weaknesses).slice(0, 3).map((w) => ({ text: `• ${w}`, options: { breakLine: true, fontSize: 11, color: BODY } })),
+            {
+              text: "WEAKNESSES",
+              options: {
+                breakLine: true,
+                fontSize: 9,
+                bold: true,
+                color: "FCA5A5",
+                charSpacing: 1,
+              },
+            },
+            ...arr(card.weaknesses)
+              .slice(0, 3)
+              .map((w) => ({
+                text: `• ${w}`,
+                options: { breakLine: true, fontSize: 11, color: bodyColor },
+              })),
             { text: " ", options: { breakLine: true, fontSize: 6 } },
-            { text: "OUR EDGE", options: { breakLine: true, fontSize: 9, bold: true, color: EMERALD, charSpacing: 1 } },
-            { text: str(card.advantage), options: { breakLine: true, fontSize: 10.5, color: MUTED } },
+            {
+              text: "OUR EDGE",
+              options: {
+                breakLine: true,
+                fontSize: 9,
+                bold: true,
+                color: accentColor,
+                charSpacing: 1,
+              },
+            },
+            {
+              text: str(card.advantage),
+              options: { breakLine: true, fontSize: 10.5, color: mutedColor },
+            },
           ];
-          sl.addText(rows, { x: cx + 0.15, y: 1.8, w: cw - 0.3, h: 4.9, valign: "top" });
+          sl.addText(rows, {
+            x: cx + 0.15,
+            y: 1.8,
+            w: cw - 0.3,
+            h: 4.9,
+            valign: "top",
+          });
         });
       } else {
-        addBullets(sl, arr(section.bullets), { x: 6.9, y: 1.65, w: 5.6, fontSize: 15 });
+        addBullets(sl, arr(section.bullets), {
+          x: 6.9,
+          y: 1.65,
+          w: 5.6,
+          fontSize: 15,
+        });
       }
       if (section.derived) {
-        sl.addText("AI-DERIVED", {
+        sl.addText("NOT PROVIDED IN SOURCE", {
           x: 0.9,
           y: 6.8,
           w: 2.4,
@@ -404,14 +578,22 @@ export async function exportPptx(deck: PitchDeck): Promise<void> {
     if (slide.kind === "insight") {
       const content: Record<string, string[]> = {
         product: [str(ins.elevatorPitch), str(ins.executiveSummary)],
-        market: [`TAM ${str(ins.tam, "—")}  ·  SAM ${str(ins.sam, "—")}  ·  SOM ${str(ins.som, "—")}`, str(ins.marketNote)],
+        market: [
+          `TAM ${str(ins.tam, "—")}  ·  SAM ${str(ins.sam, "—")}  ·  SOM ${str(ins.som, "—")}`,
+          str(ins.marketNote),
+        ],
         gtm: arr(ins.gtm),
         roadmap: arr(ins.roadmap).flatMap((p) => [
           `${str(p.phase)} (${str(p.timeline)})`,
           ...arr(p.items),
         ]),
         financials: [str(ins.businessModel), str(ins.pricingStrategy)],
-        ask: [str(ins.fundingAsk), ...arr(ins.useOfFunds), "Key risks:", ...arr(ins.risks)],
+        ask: [
+          str(ins.fundingAsk),
+          ...arr(ins.useOfFunds),
+          "Key risks:",
+          ...arr(ins.risks),
+        ],
       };
       const titleMap: Record<string, string> = {
         product: "Product",
@@ -428,10 +610,10 @@ export async function exportPptx(deck: PitchDeck): Promise<void> {
         h: 0.9,
         fontSize: 32,
         bold: true,
-        color: WHITE,
+        color: foreground,
       });
       addBullets(sl, content[slide.insight] ?? [], { y: 2.8, fontSize: 15 });
-      sl.addText("AI-GENERATED — REVIEW BEFORE PITCHING", {
+      sl.addText("SOURCE-BASED CONTENT", {
         x: 0.9,
         y: 6.8,
         w: 6,
@@ -440,17 +622,50 @@ export async function exportPptx(deck: PitchDeck): Promise<void> {
         color: "F59E0B",
         charSpacing: 2,
       });
-      // Surface the assumptions the docs didn't state — investor-relevant.
+      // Surface source gaps without turning them into claims.
       if (slide.insight === "ask" && ins.missing.length > 0) {
         sl.addText(
-          arr(ins.missing).map((m) => ({ text: `⚠ ${m}`, options: { breakLine: true, fontSize: 11, color: MUTED } })),
+          arr(ins.missing).map((m) => ({
+            text: `⚠ ${m}`,
+            options: { breakLine: true, fontSize: 11, color: mutedColor },
+          })),
           { x: 0.9, y: 6.35, w: 10.2, h: 1.0, valign: "top" },
         );
       }
     }
   });
 
-  await pptx.writeFile({
-    fileName: `${deck.title.replace(/[^\w\s-]/g, "").trim() || "pitch-deck"}.pptx`,
-  });
+  const output = await pptx.write({ outputType: "blob" });
+  const pptxMimeType =
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+  let blob: Blob | null = null;
+  if (output instanceof Blob) {
+    blob = output;
+  } else if (output instanceof ArrayBuffer) {
+    blob = new Blob([output], { type: pptxMimeType });
+  } else if (output instanceof Uint8Array) {
+    const arrayBuffer = new ArrayBuffer(output.byteLength);
+    new Uint8Array(arrayBuffer).set(output);
+    blob = new Blob([arrayBuffer], { type: pptxMimeType });
+  }
+  if (!blob || blob.size < 100)
+    throw new Error("PowerPoint generation returned an empty or invalid file.");
+  const signature = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+  if (signature[0] !== 0x50 || signature[1] !== 0x4b) {
+    throw new Error("PowerPoint output is not a valid ZIP-based .pptx file.");
+  }
+
+  return blob;
+}
+
+/** Export the deck as a .pptx file and trigger a download. */
+export async function exportPptx(deck: PitchDeck): Promise<void> {
+  const blob = await createPptxBlob(deck);
+  const fileName = `${deck.title.replace(/[^\w\s-]/g, "").trim() || "pitch-deck"}.pptx`;
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = fileName;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }

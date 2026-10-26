@@ -10,15 +10,15 @@ import { useEffect, useRef, useState } from "react";
 type Phase = "reading" | "cards" | "merge" | "done";
 
 const STEPS = [
-  "Reading Documentation",
-  "Understanding Architecture",
-  "Extracting Features",
-  "Market Research",
-  "Business Analysis",
-  "Revenue Model",
-  "Competitor Analysis",
-  "Investor Story",
-  "Slide Generation",
+  "Reading supplied source",
+  "Extracting stated project details",
+  "Checking source coverage",
+  "Preparing the slide outline",
+  "Validating supported claims",
+  "Building the slide structure",
+  "Preparing layout wireframes",
+  "Checking the selected slide count",
+  "Saving the presentation",
 ];
 
 const CARD_POSITIONS = [
@@ -121,25 +121,30 @@ export function TransformExperience({
                     Documentation source
                   </p>
                   <div className="mt-3 h-40 overflow-hidden font-mono text-[12px] leading-relaxed text-white/45">
-                    {markdown.slice(0, 420).split("\n").slice(0, 9).map((line, i) => (
-                      <div
-                        key={i}
-                        className={cn(
-                          "whitespace-pre-wrap",
-                          i > stepIndex + 1 && "opacity-20",
-                          i <= stepIndex + 1 && "opacity-90",
-                        )}
-                      >
-                        {line.slice(0, 64) || " "}
-                      </div>
-                    ))}
+                    {markdown
+                      .slice(0, 420)
+                      .split("\n")
+                      .slice(0, 9)
+                      .map((line, i) => (
+                        <div
+                          key={i}
+                          className={cn(
+                            "whitespace-pre-wrap",
+                            i > stepIndex + 1 && "opacity-20",
+                            i <= stepIndex + 1 && "opacity-90",
+                          )}
+                        >
+                          {line.slice(0, 64) || " "}
+                        </div>
+                      ))}
                   </div>
                   <div
                     className="pointer-events-none absolute inset-x-6 h-8"
                     style={{
                       background:
                         "linear-gradient(180deg, transparent, rgba(99,102,241,0.28), transparent)",
-                      animation: "scan-line 1.8s ease-in-out infinite alternate",
+                      animation:
+                        "scan-line 1.8s ease-in-out infinite alternate",
                     }}
                   />
                 </div>
@@ -200,12 +205,20 @@ export function TransformExperience({
                             }}
                           >
                             <SectionIcon
-                              name={key === "tech" ? "cpu" : key === "revenue" ? "line-chart" : key}
+                              name={
+                                key === "tech"
+                                  ? "cpu"
+                                  : key === "revenue"
+                                    ? "line-chart"
+                                    : key
+                              }
                               className="h-4 w-4"
                             />
                           </span>
                           <div className="leading-tight">
-                            <div className="text-[14px] font-bold text-white/85">{meta.title}</div>
+                            <div className="text-[14px] font-bold text-white/85">
+                              {meta.title}
+                            </div>
                             <div className="text-[11px] font-medium uppercase tracking-wider text-white/45">
                               {meta.eyebrow}
                             </div>
@@ -236,7 +249,8 @@ export function TransformExperience({
                   <div
                     className="absolute inset-0 opacity-25"
                     style={{
-                      background: "linear-gradient(135deg, #00A86B, #00E08F, #5eead4)",
+                      background:
+                        "linear-gradient(135deg, #00A86B, #00E08F, #5eead4)",
                     }}
                   />
                   <div className="relative flex h-full flex-col items-center justify-center text-center">
@@ -247,7 +261,7 @@ export function TransformExperience({
                     <div className="mt-2 flex items-center gap-1.5">
                       <Sparkles className="h-4 w-4 text-indigo-300" />
                       <span className="text-[12px] font-medium text-white/45">
-                        13 investor-ready slides
+                        {deck.slideCount ?? 12} source-based slides
                       </span>
                     </div>
                   </div>
@@ -266,7 +280,12 @@ export function TransformExperience({
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 14, delay: 0.1 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 260,
+                    damping: 14,
+                    delay: 0.1,
+                  }}
                   className="grid h-20 w-20 place-items-center rounded-full bg-gradient-to-br from-indigo-400 to-blue-500 text-white shadow-[0_18px_44px_rgba(99,102,241,0.45)]"
                 >
                   <Check className="h-10 w-10" strokeWidth={3} />

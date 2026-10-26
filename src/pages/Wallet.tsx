@@ -69,7 +69,9 @@ function FounderUpgradeDialog({
       setStep("pay");
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : "Could not connect wallet");
+      toast.error(
+        error instanceof Error ? error.message : "Could not connect wallet",
+      );
     } finally {
       setBusy(false);
     }
@@ -92,7 +94,7 @@ function FounderUpgradeDialog({
 
       await verifyPayment({ paymentId: res.paymentId, txHash: txId });
       setStep("done");
-      toast.success("Founder plan activated — enjoy unlimited decks!");
+      toast.success("Founder plan activated.");
       setTimeout(onComplete, 1200);
     } catch (error) {
       console.error(error);
@@ -112,7 +114,10 @@ function FounderUpgradeDialog({
           <h3 className="text-lg font-semibold text-white">
             {step === "done" ? "Welcome to Founder" : "Upgrade to Founder"}
           </h3>
-          <button onClick={handleClose} className="rounded-lg p-1 text-white/40 transition hover:text-white/70">
+          <button
+            onClick={handleClose}
+            className="rounded-lg p-1 text-white/40 transition hover:text-white/70"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -120,7 +125,8 @@ function FounderUpgradeDialog({
         {step === "wallet" && (
           <div className="mt-6 space-y-3">
             <p className="text-[13px] text-white/55">
-              Connect your Algorand wallet to pay 19 ALGO via secure crypto payment.
+              Connect your Algorand wallet to pay 19 ALGO via secure crypto
+              payment.
             </p>
             <button
               onClick={() => handleWalletConnect("pera")}
@@ -131,7 +137,9 @@ function FounderUpgradeDialog({
                 <WalletIcon className="h-5 w-5" />
                 <span>
                   <span className="block">Pera Wallet</span>
-                  <span className="text-[11px] font-normal text-white/60">Algorand Mobile</span>
+                  <span className="text-[11px] font-normal text-white/60">
+                    Algorand Mobile
+                  </span>
                 </span>
               </span>
             </button>
@@ -144,7 +152,9 @@ function FounderUpgradeDialog({
                 <WalletIcon className="h-5 w-5 text-[#818cf8]" />
                 <span>
                   <span className="block">Defly Wallet</span>
-                  <span className="text-[11px] font-normal text-white/60">Algorand Desktop</span>
+                  <span className="text-[11px] font-normal text-white/60">
+                    Algorand Desktop
+                  </span>
                 </span>
               </span>
             </button>
@@ -166,7 +176,9 @@ function FounderUpgradeDialog({
               </div>
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-[13px] text-white/60">Network</span>
-                <span className="text-[12px] font-medium text-white/80">{config?.network ?? "testnet"}</span>
+                <span className="text-[12px] font-medium text-white/80">
+                  {config?.network ?? "testnet"}
+                </span>
               </div>
             </div>
             <Button
@@ -194,8 +206,12 @@ function FounderUpgradeDialog({
             <span className="grid h-14 w-14 place-items-center rounded-full bg-indigo-500/15 text-indigo-300">
               <Check className="h-7 w-7" />
             </span>
-            <p className="text-[14px] font-semibold text-white">Founder plan activated!</p>
-            <p className="text-[12px] text-white/50">Unlimited decks · Catalog · Priority · Voice pitch</p>
+            <p className="text-[14px] font-semibold text-white">
+              Founder plan activated!
+            </p>
+            <p className="text-[12px] text-white/50">
+              Unlimited decks · Catalog · Priority · Voice pitch
+            </p>
           </div>
         )}
       </div>
@@ -229,7 +245,11 @@ export default function Wallet() {
 
   return (
     <AppShell>
-      <FounderUpgradeDialog open={founderOpen} onClose={() => setFounderOpen(false)} onComplete={() => {}} />
+      <FounderUpgradeDialog
+        open={founderOpen}
+        onClose={() => setFounderOpen(false)}
+        onComplete={() => {}}
+      />
 
       <motion.div
         initial={{ opacity: 0, y: 14 }}
@@ -242,7 +262,9 @@ export default function Wallet() {
             <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-indigo-300">
               Billing
             </p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-100">Wallet</h1>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-100">
+              Wallet
+            </h1>
             <p className="mt-2 text-[14px] leading-relaxed text-slate-400">
               Manage your plan, usage, and one-time Founder upgrade.
             </p>
@@ -274,41 +296,57 @@ export default function Wallet() {
                   <WalletIcon className="h-5 w-5" strokeWidth={1.9} />
                 </span>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-100">Connected Wallet</h2>
+                  <h2 className="text-lg font-semibold text-slate-100">
+                    Connected Wallet
+                  </h2>
                   <p className="text-[13px] text-slate-400">
-                    {isPro ? "Founder plan — forge unlimited decks." : "Free plan — pay per deck with crypto."}
+                    {isPro
+                      ? "Founder features are active; project credits remain limited to the daily allowance."
+                      : "Create projects with free credits. Optional wallet features remain separate."}
                   </p>
                 </div>
               </div>
-              
+
               <div className="mt-6 space-y-4">
                 {/* Balance */}
                 <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-[12px] font-medium text-slate-500">Balance</p>
+                  <p className="text-[12px] font-medium text-slate-500">
+                    Balance
+                  </p>
                   <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-slate-100">
                     {isPro ? "∞" : "0.00"} USDC
                   </p>
                 </div>
-                
+
                 {/* Network & Wallet */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                    <p className="text-[11px] font-medium text-slate-500">Network</p>
-                    <p className="mt-0.5 text-[13px] font-semibold text-slate-200">Algorand {x402Config?.network ?? "Testnet"}</p>
+                    <p className="text-[11px] font-medium text-slate-500">
+                      Network
+                    </p>
+                    <p className="mt-0.5 text-[13px] font-semibold text-slate-200">
+                      Algorand {x402Config?.network ?? "Testnet"}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                    <p className="text-[11px] font-medium text-slate-500">Wallet</p>
+                    <p className="text-[11px] font-medium text-slate-500">
+                      Wallet
+                    </p>
                     <p className="mt-0.5 text-[13px] font-semibold text-slate-200">
                       {x402Config ? "Connected" : "Not connected"}
                     </p>
                   </div>
                 </div>
-                
+
                 {/* Daily Spending Limit */}
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-medium text-slate-500">Daily Spending Limit</p>
-                    <p className="text-[13px] font-semibold text-slate-200">{usageData.dailyBudget} USDC</p>
+                    <p className="text-[11px] font-medium text-slate-500">
+                      Daily Spending Limit
+                    </p>
+                    <p className="text-[13px] font-semibold text-slate-200">
+                      {usageData.dailyBudget} USDC
+                    </p>
                   </div>
                 </div>
               </div>
@@ -316,55 +354,91 @@ export default function Wallet() {
 
             {/* Today's AI Usage */}
             <div className="glass flex flex-col rounded-3xl p-7">
-              <h2 className="text-lg font-semibold text-slate-100">Today's AI Usage</h2>
+              <h2 className="text-lg font-semibold text-slate-100">
+                Today's AI Usage
+              </h2>
               <p className="mt-1 text-[13px] text-slate-400">
                 Usage-based crypto billing — pay only for what you use.
               </p>
-              
+
               {/* Usage Stats */}
               <div className="mt-5 grid grid-cols-3 gap-3">
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
-                  <p className="text-2xl font-bold tabular-nums text-slate-100">{usageData.decksToday}</p>
-                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">Decks Generated</p>
+                  <p className="text-2xl font-bold tabular-nums text-slate-100">
+                    {usageData.decksToday}
+                  </p>
+                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                    Decks Generated
+                  </p>
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
-                  <p className="text-2xl font-bold tabular-nums text-slate-100">{usageData.usdcSpentToday}</p>
-                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">USDC Spent</p>
+                  <p className="text-2xl font-bold tabular-nums text-slate-100">
+                    {usageData.usdcSpentToday}
+                  </p>
+                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                    USDC Spent
+                  </p>
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
                   <p className="text-2xl font-bold tabular-nums text-indigo-300">
-                    {(parseFloat(usageData.dailyBudget) - parseFloat(usageData.usdcSpentToday)).toFixed(2)}
+                    {(
+                      parseFloat(usageData.dailyBudget) -
+                      parseFloat(usageData.usdcSpentToday)
+                    ).toFixed(2)}
                   </p>
-                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">Remaining</p>
+                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                    Remaining
+                  </p>
                 </div>
               </div>
-              
+
               {/* Generation History */}
               <div className="mt-5">
-                <h3 className="text-[13px] font-semibold text-slate-300">Generation History</h3>
+                <h3 className="text-[13px] font-semibold text-slate-300">
+                  Generation History
+                </h3>
                 <div className="mt-3 space-y-2">
                   {usageData.history.map((item, i) => (
                     <div
                       key={i}
                       className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2.5"
                     >
-                      <span className="text-[13px] text-slate-300">{item.operation}</span>
-                      <span className="text-[12px] font-semibold text-indigo-300">{item.cost}</span>
+                      <span className="text-[13px] text-slate-300">
+                        {item.operation}
+                      </span>
+                      <span className="text-[12px] font-semibold text-indigo-300">
+                        {item.cost}
+                      </span>
                     </div>
                   ))}
                 </div>
               </div>
-              
+
               {/* Pricing breakdown */}
               <div className="mt-5 rounded-xl border border-indigo-400/20 bg-indigo-500/[0.06] p-4">
-                <h4 className="text-[12px] font-semibold text-indigo-300">Per-Operation Pricing</h4>
+                <h4 className="text-[12px] font-semibold text-indigo-300">
+                  Per-Operation Pricing
+                </h4>
                 <div className="mt-2 space-y-1.5 text-[12px] text-slate-400">
-                  <div className="flex justify-between"><span>README Parsing</span><span>0.10 USDC</span></div>
-                  <div className="flex justify-between"><span>Market Research</span><span>0.25 USDC</span></div>
-                  <div className="flex justify-between"><span>Competitor Analysis</span><span>0.20 USDC</span></div>
-                  <div className="flex justify-between"><span>Deck Generation</span><span>1.15 USDC</span></div>
+                  <div className="flex justify-between">
+                    <span>README Parsing</span>
+                    <span>0.10 USDC</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Market Research</span>
+                    <span>0.25 USDC</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Competitor Analysis</span>
+                    <span>0.20 USDC</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Deck Generation</span>
+                    <span>1.15 USDC</span>
+                  </div>
                   <div className="border-t border-indigo-400/20 pt-1.5 flex justify-between font-semibold text-indigo-300">
-                    <span>Total</span><span>1.70 USDC</span>
+                    <span>Total</span>
+                    <span>1.70 USDC</span>
                   </div>
                 </div>
               </div>
@@ -384,13 +458,15 @@ export default function Wallet() {
               </h2>
             </div>
           </div>
-          
+
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
             {/* Free */}
-            <div className={cn(
-              "glass relative flex flex-col rounded-3xl p-5 transition-all duration-300",
-              plan === "free" && "ring-1 ring-indigo-400/30",
-            )}>
+            <div
+              className={cn(
+                "glass relative flex flex-col rounded-3xl p-5 transition-all duration-300",
+                plan === "free" && "ring-1 ring-indigo-400/30",
+              )}
+            >
               {plan === "free" && (
                 <Badge className="absolute right-3 top-3 border-transparent bg-indigo-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-indigo-300">
                   Current
@@ -398,10 +474,14 @@ export default function Wallet() {
               )}
               <h3 className="text-[14px] font-semibold text-slate-100">Free</h3>
               <div className="mt-3 flex items-baseline gap-1">
-                <span className="text-2xl font-bold tracking-tight text-slate-100">0</span>
+                <span className="text-2xl font-bold tracking-tight text-slate-100">
+                  0
+                </span>
                 <span className="text-[11px] text-slate-500">ALGO</span>
               </div>
-              <p className="mt-1 text-[11px] text-slate-500">No wallet needed</p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                No wallet needed
+              </p>
               <ul className="mt-4 flex-1 space-y-1.5 text-[12px] text-slate-400">
                 {[
                   [true, "2 pitch decks"],
@@ -414,15 +494,25 @@ export default function Wallet() {
                 ].map(([ok, label]) => (
                   <li key={String(label)} className="flex items-center gap-2">
                     {ok ? (
-                      <Check className="h-3.5 w-3.5 shrink-0 text-indigo-400" strokeWidth={2.5} />
+                      <Check
+                        className="h-3.5 w-3.5 shrink-0 text-indigo-400"
+                        strokeWidth={2.5}
+                      />
                     ) : (
-                      <X className="h-3.5 w-3.5 shrink-0 text-slate-600" strokeWidth={2} />
+                      <X
+                        className="h-3.5 w-3.5 shrink-0 text-slate-600"
+                        strokeWidth={2}
+                      />
                     )}
                     {label}
                   </li>
                 ))}
               </ul>
-              <Button variant="outline" disabled className="glass-soft mt-4 w-full rounded-xl text-[12px] text-slate-500">
+              <Button
+                variant="outline"
+                disabled
+                className="glass-soft mt-4 w-full rounded-xl text-[12px] text-slate-500"
+              >
                 Free forever
               </Button>
             </div>
@@ -432,12 +522,18 @@ export default function Wallet() {
               <Badge className="absolute right-3 top-3 border-transparent bg-indigo-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-indigo-300">
                 crypto
               </Badge>
-              <h3 className="text-[14px] font-semibold text-slate-100">Per-Deck</h3>
+              <h3 className="text-[14px] font-semibold text-slate-100">
+                Per-Deck
+              </h3>
               <div className="mt-3 flex items-baseline gap-1">
-                <span className="text-2xl font-bold tracking-tight text-slate-100">2.5</span>
+                <span className="text-2xl font-bold tracking-tight text-slate-100">
+                  2.5
+                </span>
                 <span className="text-[11px] text-slate-500">ALGO</span>
               </div>
-              <p className="mt-1 text-[11px] text-slate-500">Pay only for what you use</p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Pay only for what you use
+              </p>
               <ul className="mt-4 flex-1 space-y-1.5 text-[12px] text-slate-400">
                 {[
                   [true, "Unlimited premium decks"],
@@ -450,25 +546,36 @@ export default function Wallet() {
                 ].map(([ok, label]) => (
                   <li key={String(label)} className="flex items-center gap-2">
                     {ok ? (
-                      <Check className="h-3.5 w-3.5 shrink-0 text-indigo-400" strokeWidth={2.5} />
+                      <Check
+                        className="h-3.5 w-3.5 shrink-0 text-indigo-400"
+                        strokeWidth={2.5}
+                      />
                     ) : (
-                      <X className="h-3.5 w-3.5 shrink-0 text-slate-600" strokeWidth={2} />
+                      <X
+                        className="h-3.5 w-3.5 shrink-0 text-slate-600"
+                        strokeWidth={2}
+                      />
                     )}
                     {label}
                   </li>
                 ))}
               </ul>
-              <Button disabled className="mt-4 w-full gap-1.5 rounded-xl bg-indigo-500/15 text-[12px] text-indigo-300">
+              <Button
+                disabled
+                className="mt-4 w-full gap-1.5 rounded-xl bg-indigo-500/15 text-[12px] text-indigo-300"
+              >
                 <Zap className="h-3.5 w-3.5" />
                 Pay per deck in DeckView
               </Button>
             </div>
 
             {/* Founder */}
-            <div className={cn(
-              "edge-highlight relative flex flex-col overflow-hidden rounded-3xl border border-indigo-400/30 bg-gradient-to-b from-[oklch(0.24_0.05_262/0.7)] to-[oklch(0.18_0.03_262/0.6)] p-5 backdrop-blur-xl",
-              isPro && "ring-1 ring-indigo-400/50",
-            )}>
+            <div
+              className={cn(
+                "edge-highlight relative flex flex-col overflow-hidden rounded-3xl border border-indigo-400/30 bg-gradient-to-b from-[oklch(0.24_0.05_262/0.7)] to-[oklch(0.18_0.03_262/0.6)] p-5 backdrop-blur-xl",
+                isPro && "ring-1 ring-indigo-400/50",
+              )}
+            >
               {isPro ? (
                 <Badge className="absolute right-3 top-3 border-transparent bg-indigo-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-indigo-200">
                   Active
@@ -478,12 +585,18 @@ export default function Wallet() {
                   Best value
                 </Badge>
               )}
-              <h3 className="text-[14px] font-semibold text-slate-100">Founder</h3>
+              <h3 className="text-[14px] font-semibold text-slate-100">
+                Founder
+              </h3>
               <div className="mt-3 flex items-baseline gap-1">
-                <span className="text-2xl font-bold tracking-tight text-slate-100">19</span>
+                <span className="text-2xl font-bold tracking-tight text-slate-100">
+                  19
+                </span>
                 <span className="text-[11px] text-slate-500">ALGO</span>
               </div>
-              <p className="mt-1 text-[11px] text-slate-500">One-time, lifetime access</p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                One-time, lifetime access
+              </p>
               <ul className="mt-4 flex-1 space-y-1.5 text-[12px] text-slate-300">
                 {[
                   [true, "Everything in Per-Deck"],
@@ -496,16 +609,25 @@ export default function Wallet() {
                 ].map(([ok, label]) => (
                   <li key={String(label)} className="flex items-center gap-2">
                     {ok ? (
-                      <Check className="h-3.5 w-3.5 shrink-0 text-indigo-300" strokeWidth={2.5} />
+                      <Check
+                        className="h-3.5 w-3.5 shrink-0 text-indigo-300"
+                        strokeWidth={2.5}
+                      />
                     ) : (
-                      <X className="h-3.5 w-3.5 shrink-0 text-slate-600" strokeWidth={2} />
+                      <X
+                        className="h-3.5 w-3.5 shrink-0 text-slate-600"
+                        strokeWidth={2}
+                      />
                     )}
                     {label}
                   </li>
                 ))}
               </ul>
               {isPro ? (
-                <Button disabled className="mt-4 w-full rounded-xl bg-indigo-500/15 text-[12px] text-indigo-300">
+                <Button
+                  disabled
+                  className="mt-4 w-full rounded-xl bg-indigo-500/15 text-[12px] text-indigo-300"
+                >
                   <Check className="mr-1.5 h-3.5 w-3.5" />
                   Founder active
                 </Button>
@@ -556,10 +678,12 @@ export default function Wallet() {
                 <span className="glass-soft grid h-12 w-12 place-items-center rounded-2xl text-indigo-300">
                   <WalletIcon className="h-5 w-5" strokeWidth={1.9} />
                 </span>
-                <p className="text-[14px] font-medium text-slate-200">No on-chain payments yet</p>
+                <p className="text-[14px] font-medium text-slate-200">
+                  No on-chain payments yet
+                </p>
                 <p className="max-w-sm text-[12.5px] leading-relaxed text-slate-500">
-                  Open a deck and use the premium gate to pay with a Pera or Defly
-                  wallet — your verified transactions will appear here.
+                  Open a deck and use the premium gate to pay with a Pera or
+                  Defly wallet — your verified transactions will appear here.
                 </p>
               </div>
             ) : (
@@ -571,7 +695,10 @@ export default function Wallet() {
                       ? `${x402Config.explorerBase}/tx/${p.txHash}`
                       : null;
                   return (
-                    <div key={p._id} className="flex flex-wrap items-center gap-3 px-5 py-4">
+                    <div
+                      key={p._id}
+                      className="flex flex-wrap items-center gap-3 px-5 py-4"
+                    >
                       <span
                         className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${
                           verified
@@ -588,7 +715,9 @@ export default function Wallet() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="text-[13.5px] font-semibold text-slate-100">
-                            {(p.amount / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}{" "}
+                            {(p.amount / 1_000_000).toLocaleString(undefined, {
+                              maximumFractionDigits: 2,
+                            })}{" "}
                             ALGO
                           </span>
                           <Badge
@@ -626,7 +755,9 @@ export default function Wallet() {
                             </span>
                           )
                         ) : (
-                          <span className="text-[11px] text-slate-600">No tx hash</span>
+                          <span className="text-[11px] text-slate-600">
+                            No tx hash
+                          </span>
                         )}
                         <p className="mt-1 text-[11px] text-slate-600">
                           {new Date(p._creationTime).toLocaleString(undefined, {
@@ -656,7 +787,8 @@ export default function Wallet() {
                 Minted pitch decks
               </h2>
               <p className="mt-1 text-[13px] text-slate-400">
-                ARC-3 Algorand Standard Assets — immutable on-chain records of your decks.
+                ARC-3 Algorand Standard Assets — immutable on-chain records of
+                your decks.
               </p>
             </div>
             <Badge className="w-fit border-transparent bg-purple-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-purple-300">
@@ -676,17 +808,25 @@ export default function Wallet() {
                 <span className="glass-soft grid h-12 w-12 place-items-center rounded-2xl text-purple-300">
                   <Box className="h-5 w-5" strokeWidth={1.9} />
                 </span>
-                <p className="text-[14px] font-medium text-slate-200">No NFTs minted yet</p>
+                <p className="text-[14px] font-medium text-slate-200">
+                  No NFTs minted yet
+                </p>
                 <p className="max-w-sm text-[12.5px] leading-relaxed text-slate-500">
-                  Open a deck and click "Mint NFT" to create an immutable on-chain record on Algorand.
+                  Open a deck and click "Mint NFT" to create an immutable
+                  on-chain record on Algorand.
                 </p>
               </div>
             ) : (
               <div className="divide-y divide-white/5">
                 {nfts.map((nft) => {
-                  const explorer = x402Config ? `${x402Config.explorerBase}/asset/${nft.assetId}` : null;
+                  const explorer = x402Config
+                    ? `${x402Config.explorerBase}/asset/${nft.assetId}`
+                    : null;
                   return (
-                    <div key={nft._id} className="flex flex-wrap items-center gap-3 px-5 py-4">
+                    <div
+                      key={nft._id}
+                      className="flex flex-wrap items-center gap-3 px-5 py-4"
+                    >
                       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-purple-500/15 text-purple-300">
                         <Box className="h-4 w-4" />
                       </span>
@@ -720,12 +860,15 @@ export default function Wallet() {
                           </span>
                         )}
                         <p className="mt-1 text-[11px] text-slate-600">
-                          {new Date(nft._creationTime).toLocaleString(undefined, {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {new Date(nft._creationTime).toLocaleString(
+                            undefined,
+                            {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
                         </p>
                       </div>
                     </div>

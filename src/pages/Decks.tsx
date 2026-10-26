@@ -52,7 +52,9 @@ export default function Decks() {
             <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
               Library
             </p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-100">Decks</h1>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-100">
+              Decks
+            </h1>
             <p className="mt-2 text-[14px] text-slate-400">
               Every pitch deck you’ve forged — ready to present, share, publish
               and download.
@@ -94,7 +96,11 @@ export default function Decks() {
                 key={deck._id}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
+                transition={{
+                  duration: 0.4,
+                  delay: i * 0.06,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
                 className="glass glass-hover group relative flex flex-col overflow-hidden rounded-2xl p-5"
               >
                 <div
@@ -118,13 +124,18 @@ export default function Decks() {
                       </AlertDialogTrigger>
                       <AlertDialogContent className="glass-strong rounded-2xl">
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete “{deck.title}”?</AlertDialogTitle>
+                          <AlertDialogTitle>
+                            Delete “{deck.title}”?
+                          </AlertDialogTitle>
                           <AlertDialogDescription>
-                            This removes the deck and its share link permanently.
+                            This removes the deck and its share link
+                            permanently.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel className="glass-soft rounded-xl">Cancel</AlertDialogCancel>
+                          <AlertDialogCancel className="glass-soft rounded-xl">
+                            Cancel
+                          </AlertDialogCancel>
                           <AlertDialogAction
                             className="rounded-xl bg-rose-500 text-white hover:bg-rose-600"
                             onClick={async () => {
@@ -154,7 +165,16 @@ export default function Decks() {
                         className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
                         style={{ background: `${s.accent}1a`, color: s.accent }}
                       >
-                        <SectionIcon name={s.key === "tech" ? "cpu" : s.key === "revenue" ? "line-chart" : s.key} className="h-3 w-3" />
+                        <SectionIcon
+                          name={
+                            s.key === "tech"
+                              ? "cpu"
+                              : s.key === "revenue"
+                                ? "line-chart"
+                                : s.key
+                          }
+                          className="h-3 w-3"
+                        />
                         {s.title}
                       </span>
                     ))}
@@ -162,8 +182,10 @@ export default function Decks() {
 
                   <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3.5">
                     <span className="text-[11.5px] font-medium text-slate-500">
-                      {deck.sections.length + 2} slides ·{" "}
-                      {formatDistanceToNow(new Date(deck._creationTime), { addSuffix: true })}
+                      {deck.slideCount === 13 ? 13 : 12} slides ·{" "}
+                      {formatDistanceToNow(new Date(deck._creationTime), {
+                        addSuffix: true,
+                      })}
                     </span>
                     <div className="flex items-center gap-1.5">
                       <button
@@ -178,7 +200,8 @@ export default function Decks() {
                         to={`/deck/${deck._id}`}
                         className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 px-3.5 py-1.5 text-[12.5px] font-semibold text-white shadow-[0_8px_18px_rgba(34,211,238,0.25)] transition hover:-translate-y-0.5"
                       >
-                        {copiedId === deck._id ? "Copied" : "Open"} <ArrowRight className="h-3 w-3" />
+                        {copiedId === deck._id ? "Copied" : "Open"}{" "}
+                        <ArrowRight className="h-3 w-3" />
                       </Link>
                     </div>
                   </div>

@@ -22,7 +22,12 @@ import { bazaarResourceServerExtension } from "@x402-avm/extensions";
 
 import createPaymentConfig from "./endpoints.config.js";
 import { handleWeatherRequest } from "./handlers/weather.js";
-import { handleDeckGenerationRequest } from "./handlers/deck-generation.js";
+import {
+  DeckGenerationInputError,
+  handleDeckGenerationRequest,
+  parseDeckGenerationInput,
+} from "./handlers/deck-generation.js";
+import { isAIProviderConfigured } from "./handlers/ai-provider.js";
 
 config();
 
@@ -32,7 +37,9 @@ const facilitatorUrl =
 const port = Number.parseInt(process.env.PORT || "4021", 10);
 
 if (!avmAddress) {
-  console.error("❌ Missing AVM_ADDRESS. Set your Algorand TestNet receiver address.");
+  console.error(
+    "❌ Missing AVM_ADDRESS. Set your Algorand TestNet receiver address.",
+  );
   process.exit(1);
 }
 
@@ -84,7 +91,7 @@ app.use("*", async (c, next) => {
   console.log(`  Response: ${c.res.status}`);
 });
 
-const paymentConfig = createPaymentConfig(avmAddress);
+const paymentConfig = createPaymentConfig(avmAddress, isAIProviderConfigured());
 console.log("📋 Payment-protected endpoints:");
 for (const [route, routeConfig] of Object.entries(paymentConfig)) {
   const accepts = Array.isArray(routeConfig.accepts)
@@ -93,13 +100,42 @@ for (const [route, routeConfig] of Object.entries(paymentConfig)) {
   console.log(`  ${route} — ${accepts[0]?.price ?? "unknown"} USDC`);
 }
 
+app.use("/generate-deck", async (c, next) => {
+  if (c.req.method !== "POST") return next();
+
+  let payload: unknown;
+  try {
+    payload = await c.req.raw.clone().json();
+  } catch {
+    return c.json(
+      { success: false, error: "Request body must be valid JSON." },
+      400,
+    );
+  }
+
+  try {
+    parseDeckGenerationInput(payload);
+  } catch (error) {
+    const validationError =
+      error instanceof DeckGenerationInputError
+        ? error
+        : new DeckGenerationInputError("Request body is invalid.");
+    return c.json(
+      { success: false, error: validationError.message },
+      validationError.status,
+    );
+  }
+
+  await next();
+});
+
 app.use(paymentMiddleware(paymentConfig as any, x402Server));
 
 /**
  * Payment is already verified by x402 middleware when these handlers run.
  */
 app.get("/weather", handleWeatherRequest);
-app.post("/generate-deck", handleDeckGenerationRequest);
+app.post("/generate-deck", (c) => handleDeckGenerationRequest(c.req.raw));
 
 /**
  * Public health/info endpoints.
@@ -147,12 +183,14 @@ app.notFound((c) =>
 
 app.onError((error, c) => {
   console.error("Server error:", error);
-  return c.json({ error: "Internal server error", message: error.message }, 500);
+  return c.json(
+    { error: "Internal server error", message: error.message },
+    500,
+  );
 });
 
-serve(
-  { fetch: app.fetch, port },
-  () => console.log(`\n✅ GlassPitch x402 server listening on :${port}\n`),
+export const server = serve({ fetch: app.fetch, port }, () =>
+  console.log(`\n✅ GlassPitch x402 server listening on :${port}\n`),
 );
 
 export default app;

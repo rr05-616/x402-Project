@@ -1,5 +1,10 @@
 import { AuroraBlobs } from "@/components/background";
-import { extractTechStack, getTemplate, type DeckSection, type PitchDeck } from "@/lib/deck";
+import {
+  extractTechStack,
+  getTemplate,
+  type DeckSection,
+  type PitchDeck,
+} from "@/lib/deck";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -36,13 +41,19 @@ const ICONS: Record<string, LucideIcon> = {
   milestone: Milestone,
 };
 
-export function SectionIcon({ name, className }: { name: string; className?: string }) {
+export function SectionIcon({
+  name,
+  className,
+}: {
+  name: string;
+  className?: string;
+}) {
   const Icon = ICONS[name] ?? Layers;
   return <Icon className={className} strokeWidth={1.9} />;
 }
 
 /* ------------------------------------------------------------------ */
-/* Slide list — the full 13-slide investor story                       */
+/* Slide list — 12-slide default story                                  */
 /* ------------------------------------------------------------------ */
 
 export type SlideDef =
@@ -50,13 +61,7 @@ export type SlideDef =
   | { kind: "section"; section: DeckSection }
   | {
       kind: "insight";
-      insight:
-        | "product"
-        | "market"
-        | "gtm"
-        | "roadmap"
-        | "financials"
-        | "ask";
+      insight: "product" | "market" | "gtm" | "roadmap" | "financials" | "ask";
     }
   | { kind: "closing" };
 
@@ -68,7 +73,7 @@ export function deckSlides(deck: PitchDeck): SlideDef[] {
   order.push({ kind: "section", section: sectionByKey.problem });
   // Solution
   order.push({ kind: "section", section: sectionByKey.features });
-  // Product (AI-derived)
+  // Project overview
   order.push({ kind: "insight", insight: "product" });
   // Market + TAM/SAM/SOM overlay
   order.push({ kind: "section", section: sectionByKey.market });
@@ -79,11 +84,15 @@ export function deckSlides(deck: PitchDeck): SlideDef[] {
   order.push({ kind: "section", section: sectionByKey.revenue });
   // Competitive Landscape
   order.push({ kind: "section", section: sectionByKey.competitors });
-  // AI-derived story slides
+  // Source-grounded story slides
   order.push({ kind: "insight", insight: "gtm" });
   order.push({ kind: "insight", insight: "roadmap" });
-  order.push({ kind: "insight", insight: "financials" });
-  order.push({ kind: "insight", insight: "ask" });
+  if (
+    deck.slideCount === 13 &&
+    !deck.insights.fundingAsk.startsWith("Not provided")
+  ) {
+    order.push({ kind: "insight", insight: "ask" });
+  }
   order.push({ kind: "closing" });
 
   return order;
@@ -128,7 +137,10 @@ function SlideFrame({
   const t = getTemplate(deck.template ?? "glass");
   return (
     <div
-      className={cn("relative h-full w-full overflow-hidden rounded-2xl", className)}
+      className={cn(
+        "relative h-full w-full overflow-hidden rounded-2xl",
+        className,
+      )}
       style={{
         background: `linear-gradient(145deg, ${t.bg[0]} 0%, ${t.bg[1]} 52%, ${t.bg[2]} 100%)`,
       }}
@@ -156,7 +168,15 @@ function SlideFrame({
   );
 }
 
-function Watermark({ deck, index, total }: { deck: PitchDeck; index: number; total: number }) {
+function Watermark({
+  deck,
+  index,
+  total,
+}: {
+  deck: PitchDeck;
+  index: number;
+  total: number;
+}) {
   const t = getTemplate(deck.template ?? "glass");
   const fg = t.dark ? "text-white/45" : "text-black/40";
   return (
@@ -190,7 +210,7 @@ export function ReadinessRing({
   score,
   size = 148,
   stroke = 10,
-  label = "Investor Readiness",
+  label = "Readiness estimate",
 }: {
   score: number;
   size?: number;
@@ -200,10 +220,19 @@ export function ReadinessRing({
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   return (
-    <div className="relative inline-grid place-items-center" style={{ width: size, height: size }}>
+    <div
+      className="relative inline-grid place-items-center"
+      style={{ width: size, height: size }}
+    >
       <svg width={size} height={size} className="-rotate-90">
         <defs>
-          <linearGradient id="readiness-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient
+            id="readiness-grad"
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="100%"
+          >
             <stop offset="0%" stopColor="#6366f1" />
             <stop offset="100%" stopColor="#818cf8" />
           </linearGradient>
@@ -253,7 +282,9 @@ function CoverSlide({ deck }: { deck: PitchDeck }) {
   const t = getTemplate(deck.template ?? "glass");
   const fgTitle = t.dark ? "text-white" : "text-black";
   const fgSub = t.dark ? "text-white/60" : "text-black/55";
-  const chipBg = t.dark ? "border-white/10 bg-white/5" : "border-black/10 bg-black/5";
+  const chipBg = t.dark
+    ? "border-white/10 bg-white/5"
+    : "border-black/10 bg-black/5";
   return (
     <div className="flex h-full w-full flex-col items-center justify-center px-24 text-center">
       <motion.div
@@ -270,14 +301,17 @@ function CoverSlide({ deck }: { deck: PitchDeck }) {
           className="h-1.5 w-1.5 rounded-full"
           style={{ background: t.accent, boxShadow: `0 0 8px ${t.accent}` }}
         />
-        Investor pitch · generated from repo docs
+        Project pitch · based on provided source material
       </motion.div>
 
       <motion.h1
         initial={{ opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
-        className={cn("mt-8 max-w-[960px] text-[76px] font-bold leading-[1.02] tracking-tight", fgTitle)}
+        className={cn(
+          "mt-8 max-w-[960px] text-[76px] font-bold leading-[1.02] tracking-tight",
+          fgTitle,
+        )}
       >
         {deck.title}
       </motion.h1>
@@ -308,7 +342,10 @@ function CoverSlide({ deck }: { deck: PitchDeck }) {
           >
             <span
               className="grid h-5 w-5 place-items-center rounded-md text-white"
-              style={{ background: s.accent, boxShadow: `0 0 14px ${s.accent}66` }}
+              style={{
+                background: s.accent,
+                boxShadow: `0 0 14px ${s.accent}66`,
+              }}
             >
               <SectionIcon
                 name={
@@ -429,7 +466,10 @@ function SectionSlide({
         >
           <span
             className="grid h-9 w-9 place-items-center rounded-xl text-white shadow-lg"
-            style={{ background: section.accent, boxShadow: `0 10px 24px ${section.accent}55` }}
+            style={{
+              background: section.accent,
+              boxShadow: `0 10px 24px ${section.accent}55`,
+            }}
           >
             <SectionIcon name={iconName} className="h-5 w-5" />
           </span>
@@ -443,10 +483,12 @@ function SectionSlide({
             <span
               className={cn(
                 "rounded-full border px-2.5 py-1 text-[11px] font-medium",
-                t.dark ? "border-white/10 bg-white/5 text-white/45" : "border-black/10 bg-black/5 text-black/40",
+                t.dark
+                  ? "border-white/10 bg-white/5 text-white/45"
+                  : "border-black/10 bg-black/5 text-black/40",
               )}
             >
-              AI-derived
+              Not provided
             </span>
           )}
         </motion.div>
@@ -455,7 +497,10 @@ function SectionSlide({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.14, ease: [0.22, 1, 0.36, 1] }}
-          className={cn("mt-5 text-[62px] font-bold leading-none tracking-tight", fgTitle)}
+          className={cn(
+            "mt-5 text-[62px] font-bold leading-none tracking-tight",
+            fgTitle,
+          )}
         >
           {section.title}
         </motion.h2>
@@ -465,16 +510,22 @@ function SectionSlide({
           animate={{ scaleX: 1 }}
           transition={{ duration: 0.6, delay: 0.28, ease: [0.22, 1, 0.36, 1] }}
           className="mt-5 h-1.5 w-28 origin-left rounded-full"
-          style={{ background: section.accent, boxShadow: `0 0 16px ${section.accent}88` }}
+          style={{
+            background: section.accent,
+            boxShadow: `0 0 16px ${section.accent}88`,
+          }}
         />
 
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.34 }}
-          className={cn("mt-6 max-w-[420px] text-[18px] leading-relaxed", fgSub)}
+          className={cn(
+            "mt-6 max-w-[420px] text-[18px] leading-relaxed",
+            fgSub,
+          )}
         >
-          {section.eyebrow} — distilled straight from your repository docs.
+          {section.eyebrow} — drawn from the provided source material.
         </motion.p>
       </div>
 
@@ -485,48 +536,71 @@ function SectionSlide({
         transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
         className="ml-10 w-[54%]"
       >
-        <div className={cn("relative rounded-3xl border p-9 backdrop-blur-xl", panelBg)}>
-          {section.key === "tech" && extractTechStack(section.bullets).length > 0 && (
-            <div className="mb-6 flex flex-wrap gap-2.5">
-              {extractTechStack(section.bullets).map((tech) => (
-                <span
-                  key={tech}
-                  className="rounded-full border px-3.5 py-1.5 text-[15px] font-semibold"
-                  style={{
-                    borderColor: `${section.accent}55`,
-                    background: `${section.accent}14`,
-                    color: section.accent,
-                    boxShadow: `0 0 14px ${section.accent}22`,
-                  }}
-                >
-                  {tech}
-                </span>
-              ))}
-            </div>
+        <div
+          className={cn(
+            "relative rounded-3xl border p-9 backdrop-blur-xl",
+            panelBg,
           )}
+        >
+          {section.key === "tech" &&
+            extractTechStack(section.bullets).length > 0 && (
+              <div className="mb-6 flex flex-wrap gap-2.5">
+                {extractTechStack(section.bullets).map((tech) => (
+                  <span
+                    key={tech}
+                    className="rounded-full border px-3.5 py-1.5 text-[15px] font-semibold"
+                    style={{
+                      borderColor: `${section.accent}55`,
+                      background: `${section.accent}14`,
+                      color: section.accent,
+                      boxShadow: `0 0 14px ${section.accent}22`,
+                    }}
+                  >
+                    {tech}
+                  </span>
+                ))}
+              </div>
+            )}
           <div className="space-y-5">
-            {section.bullets.map((bullet, bi) => (
-              <motion.div
-                key={`${bullet}-${bi}`}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, delay: 0.38 + bi * 0.12, ease: [0.22, 1, 0.36, 1] }}
-                className="flex items-start gap-4"
-              >
-                <span
-                  className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full text-[13px] font-bold text-white shadow-md"
-                  style={{ background: section.accent, boxShadow: `0 0 16px ${section.accent}55` }}
+            {section.bullets.length === 0 ? (
+              <p className={cn("text-[18px] leading-relaxed", fgSub)}>
+                Not provided in the source material.
+              </p>
+            ) : (
+              section.bullets.map((bullet, bi) => (
+                <motion.div
+                  key={`${bullet}-${bi}`}
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.45,
+                    delay: 0.38 + bi * 0.12,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="flex items-start gap-4"
                 >
-                  {bi + 1}
-                </span>
-                <p className={cn("text-[21px] leading-snug", fgBody)}>{bullet}</p>
-              </motion.div>
-            ))}
+                  <span
+                    className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full text-[13px] font-bold text-white shadow-md"
+                    style={{
+                      background: section.accent,
+                      boxShadow: `0 0 16px ${section.accent}55`,
+                    }}
+                  >
+                    {bi + 1}
+                  </span>
+                  <p className={cn("text-[21px] leading-snug", fgBody)}>
+                    {bullet}
+                  </p>
+                </motion.div>
+              ))
+            )}
           </div>
           <div
             className={cn(
               "pointer-events-none absolute -bottom-7 -right-7 h-24 w-24 rounded-2xl border backdrop-blur-md",
-              t.dark ? "border-white/10 bg-white/5" : "border-black/10 bg-black/5",
+              t.dark
+                ? "border-white/10 bg-white/5"
+                : "border-black/10 bg-black/5",
             )}
             style={{ transform: "rotate(8deg)" }}
           >
@@ -546,7 +620,7 @@ function SectionSlide({
 }
 
 /* ------------------------------------------------------------------ */
-/* Insight slides (AI-derived story)                                   */
+/* Insight slides                                                       */
 /* ------------------------------------------------------------------ */
 
 function InsightSlide({
@@ -567,16 +641,27 @@ function InsightSlide({
   const fgTitle = t.dark ? "text-white" : "text-black";
   const fgSub = t.dark ? "text-white/55" : "text-black/50";
   const fgBody = t.dark ? "text-white/70" : "text-black/70";
-  const chipBg = t.dark ? "border-white/10 bg-white/5" : "border-black/10 bg-black/5";
+  const chipBg = t.dark
+    ? "border-white/10 bg-white/5"
+    : "border-black/10 bg-black/5";
 
-  const META: Record<string, { title: string; eyebrow: string; icon: string }> = {
-    product: { title: "Product", eyebrow: "What we built", icon: "rocket" },
-    market: { title: "Market Sizing", eyebrow: "TAM · SAM · SOM", icon: "trending-up" },
-    gtm: { title: "Go-To-Market", eyebrow: "How we win", icon: "megaphone" },
-    roadmap: { title: "Roadmap", eyebrow: "What's next", icon: "milestone" },
-    financials: { title: "Financials", eyebrow: "The model", icon: "line-chart" },
-    ask: { title: "Investment Ask", eyebrow: "The round", icon: "wallet" },
-  };
+  const META: Record<string, { title: string; eyebrow: string; icon: string }> =
+    {
+      product: { title: "Product", eyebrow: "What we built", icon: "rocket" },
+      market: {
+        title: "Market Sizing",
+        eyebrow: "TAM · SAM · SOM",
+        icon: "trending-up",
+      },
+      gtm: { title: "Go-To-Market", eyebrow: "How we win", icon: "megaphone" },
+      roadmap: { title: "Roadmap", eyebrow: "What's next", icon: "milestone" },
+      financials: {
+        title: "Financials",
+        eyebrow: "The model",
+        icon: "line-chart",
+      },
+      ask: { title: "Investment Ask", eyebrow: "The round", icon: "wallet" },
+    };
   const meta = META[insight];
   const accent = t.accent;
 
@@ -584,12 +669,21 @@ function InsightSlide({
     if (insight === "product") {
       return (
         <div className="space-y-4">
-          <p className={cn("text-[21px] leading-snug", fgBody)}>{ins.elevatorPitch}</p>
+          <p className={cn("text-[21px] leading-snug", fgBody)}>
+            {ins.elevatorPitch}
+          </p>
           <div className={cn("rounded-2xl border p-5", chipBg)}>
-            <p className={cn("text-[13px] font-semibold uppercase tracking-[0.18em]", fgSub)}>
+            <p
+              className={cn(
+                "text-[13px] font-semibold uppercase tracking-[0.18em]",
+                fgSub,
+              )}
+            >
               Executive summary
             </p>
-            <p className={cn("mt-2 text-[17px] leading-relaxed", fgBody)}>{ins.executiveSummary}</p>
+            <p className={cn("mt-2 text-[17px] leading-relaxed", fgBody)}>
+              {ins.executiveSummary}
+            </p>
           </div>
         </div>
       );
@@ -609,87 +703,147 @@ function InsightSlide({
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 + i * 0.12 }}
-                className={cn("relative overflow-hidden rounded-2xl border p-5 text-center", chipBg)}
+                className={cn(
+                  "relative overflow-hidden rounded-2xl border p-5 text-center",
+                  chipBg,
+                )}
               >
                 <div
                   className="pointer-events-none absolute inset-x-0 top-0 h-1"
-                  style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }}
+                  style={{
+                    background: `linear-gradient(90deg, transparent, ${accent}, transparent)`,
+                  }}
                 />
-                <div className="text-[13px] font-semibold uppercase tracking-[0.18em]" style={{ color: accent }}>
+                <div
+                  className="text-[13px] font-semibold uppercase tracking-[0.18em]"
+                  style={{ color: accent }}
+                >
                   {tier.label}
                 </div>
-                <div className={cn("mt-2 text-[38px] font-bold tabular-nums tracking-tight", fgTitle)}>
+                <div
+                  className={cn(
+                    "mt-2 text-[38px] font-bold tabular-nums tracking-tight",
+                    fgTitle,
+                  )}
+                >
                   {tier.value}
                 </div>
-                <div className={cn("mt-1 text-[12px] font-medium", fgSub)}>{tier.note}</div>
+                <div className={cn("mt-1 text-[12px] font-medium", fgSub)}>
+                  {tier.note}
+                </div>
               </motion.div>
             ))}
           </div>
-          <p className={cn("text-[16.5px] leading-relaxed", fgBody)}>{ins.marketNote}</p>
+          <p className={cn("text-[16.5px] leading-relaxed", fgBody)}>
+            {ins.marketNote}
+          </p>
         </div>
       );
     }
     if (insight === "gtm") {
       return (
         <div className="space-y-4">
-          {ins.gtm.map((step, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.45, delay: 0.25 + i * 0.12 }}
-              className={cn("flex items-start gap-4 rounded-2xl border p-4", chipBg)}
+          {ins.gtm.length === 0 ? (
+            <p
+              className={cn(
+                "rounded-2xl border p-5 text-[17px] leading-relaxed",
+                chipBg,
+                fgBody,
+              )}
             >
-              <span
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[13px] font-bold text-white"
-                style={{ background: accent, boxShadow: `0 0 16px ${accent}55` }}
+              Not provided in the source material.
+            </p>
+          ) : (
+            ins.gtm.map((step, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.45, delay: 0.25 + i * 0.12 }}
+                className={cn(
+                  "flex items-start gap-4 rounded-2xl border p-4",
+                  chipBg,
+                )}
               >
-                {i + 1}
-              </span>
-              <p className={cn("pt-1 text-[17.5px] leading-snug", fgBody)}>{step}</p>
-            </motion.div>
-          ))}
+                <span
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[13px] font-bold text-white"
+                  style={{
+                    background: accent,
+                    boxShadow: `0 0 16px ${accent}55`,
+                  }}
+                >
+                  {i + 1}
+                </span>
+                <p className={cn("pt-1 text-[17.5px] leading-snug", fgBody)}>
+                  {step}
+                </p>
+              </motion.div>
+            ))
+          )}
         </div>
       );
     }
     if (insight === "roadmap") {
       return (
         <div className="space-y-4">
-          {ins.roadmap.map((phase, i) => (
-            <motion.div
-              key={phase.phase}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.2 + i * 0.14 }}
-              className={cn("rounded-2xl border p-5", chipBg)}
+          {ins.roadmap.length === 0 ? (
+            <p
+              className={cn(
+                "rounded-2xl border p-5 text-[17px] leading-relaxed",
+                chipBg,
+                fgBody,
+              )}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
+              Not provided in the source material.
+            </p>
+          ) : (
+            ins.roadmap.map((phase, i) => (
+              <motion.div
+                key={phase.phase}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, delay: 0.2 + i * 0.14 }}
+                className={cn("rounded-2xl border p-5", chipBg)}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="grid h-7 w-7 place-items-center rounded-lg text-white"
+                      style={{ background: accent }}
+                    >
+                      <Milestone className="h-4 w-4" />
+                    </span>
+                    <span className={cn("text-[19px] font-bold", fgTitle)}>
+                      {phase.phase}
+                    </span>
+                  </div>
                   <span
-                    className="grid h-7 w-7 place-items-center rounded-lg text-white"
-                    style={{ background: accent }}
+                    className="rounded-full px-3 py-1 text-[12px] font-semibold"
+                    style={{ background: `${accent}1f`, color: accent }}
                   >
-                    <Milestone className="h-4 w-4" />
+                    {phase.timeline}
                   </span>
-                  <span className={cn("text-[19px] font-bold", fgTitle)}>{phase.phase}</span>
                 </div>
-                <span
-                  className="rounded-full px-3 py-1 text-[12px] font-semibold"
-                  style={{ background: `${accent}1f`, color: accent }}
-                >
-                  {phase.timeline}
-                </span>
-              </div>
-              <ul className="mt-3 space-y-1.5">
-                {phase.items.map((item, bi) => (
-                  <li key={bi} className={cn("flex items-center gap-2 text-[16px]", fgBody)}>
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-          ))}
+                <ul className="mt-3 space-y-1.5">
+                  {phase.items.map((item, bi) => (
+                    <li
+                      key={bi}
+                      className={cn(
+                        "flex items-center gap-2 text-[16px]",
+                        fgBody,
+                      )}
+                    >
+                      <span
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ background: accent }}
+                      />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            ))
+          )}
         </div>
       );
     }
@@ -697,16 +851,30 @@ function InsightSlide({
       return (
         <div className="space-y-4">
           <div className={cn("rounded-2xl border p-5", chipBg)}>
-            <p className={cn("text-[13px] font-semibold uppercase tracking-[0.18em]", fgSub)}>
+            <p
+              className={cn(
+                "text-[13px] font-semibold uppercase tracking-[0.18em]",
+                fgSub,
+              )}
+            >
               Business model
             </p>
-            <p className={cn("mt-2 text-[19px] leading-snug", fgBody)}>{ins.businessModel}</p>
+            <p className={cn("mt-2 text-[19px] leading-snug", fgBody)}>
+              {ins.businessModel}
+            </p>
           </div>
           <div className={cn("rounded-2xl border p-5", chipBg)}>
-            <p className={cn("text-[13px] font-semibold uppercase tracking-[0.18em]", fgSub)}>
+            <p
+              className={cn(
+                "text-[13px] font-semibold uppercase tracking-[0.18em]",
+                fgSub,
+              )}
+            >
               Pricing strategy
             </p>
-            <p className={cn("mt-2 text-[17.5px] leading-snug", fgBody)}>{ins.pricingStrategy}</p>
+            <p className={cn("mt-2 text-[17.5px] leading-snug", fgBody)}>
+              {ins.pricingStrategy}
+            </p>
           </div>
         </div>
       );
@@ -715,21 +883,45 @@ function InsightSlide({
     return (
       <div className="space-y-4">
         <div className={cn("rounded-2xl border p-6", chipBg)}>
-          <p className={cn("text-[13px] font-semibold uppercase tracking-[0.18em]", fgSub)}>
+          <p
+            className={cn(
+              "text-[13px] font-semibold uppercase tracking-[0.18em]",
+              fgSub,
+            )}
+          >
             Funding ask
           </p>
-          <p className={cn("mt-2 text-[24px] font-semibold leading-snug", fgTitle)}>
+          <p
+            className={cn(
+              "mt-2 text-[24px] font-semibold leading-snug",
+              fgTitle,
+            )}
+          >
             {ins.fundingAsk}
           </p>
         </div>
         <div className={cn("rounded-2xl border p-5", chipBg)}>
-          <p className={cn("text-[13px] font-semibold uppercase tracking-[0.18em]", fgSub)}>
+          <p
+            className={cn(
+              "text-[13px] font-semibold uppercase tracking-[0.18em]",
+              fgSub,
+            )}
+          >
             Use of funds
           </p>
           <ul className="mt-3 space-y-2">
             {ins.useOfFunds.map((item, i) => (
-              <li key={i} className={cn("flex items-center gap-2.5 text-[16.5px]", fgBody)}>
-                <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
+              <li
+                key={i}
+                className={cn(
+                  "flex items-center gap-2.5 text-[16.5px]",
+                  fgBody,
+                )}
+              >
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ background: accent }}
+                />
                 {item}
               </li>
             ))}
@@ -739,7 +931,11 @@ function InsightSlide({
           {ins.risks.map((r) => (
             <span
               key={r}
-              className={cn("rounded-full border px-3 py-1 text-[12.5px] font-medium", chipBg, fgSub)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-[12.5px] font-medium",
+                chipBg,
+                fgSub,
+              )}
             >
               ⚠ {r}
             </span>
@@ -779,15 +975,24 @@ function InsightSlide({
           >
             {meta.eyebrow}
           </span>
-          <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-medium", chipBg, fgSub)}>
-            AI-generated
+          <span
+            className={cn(
+              "rounded-full border px-2.5 py-1 text-[11px] font-medium",
+              chipBg,
+              fgSub,
+            )}
+          >
+            Source-based
           </span>
         </motion.div>
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.14, ease: [0.22, 1, 0.36, 1] }}
-          className={cn("mt-5 text-[62px] font-bold leading-none tracking-tight", fgTitle)}
+          className={cn(
+            "mt-5 text-[62px] font-bold leading-none tracking-tight",
+            fgTitle,
+          )}
         >
           {meta.title}
         </motion.h2>
@@ -802,9 +1007,13 @@ function InsightSlide({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.34 }}
-          className={cn("mt-6 max-w-[400px] text-[18px] leading-relaxed", fgSub)}
+          className={cn(
+            "mt-6 max-w-[400px] text-[18px] leading-relaxed",
+            fgSub,
+          )}
         >
-          Inferred from your docs with sensible business assumptions — flagged for review.
+          Only source-supported details are used. Missing information is
+          identified instead of assumed.
         </motion.p>
       </div>
       <motion.div
@@ -829,7 +1038,9 @@ function ClosingSlide({ deck }: { deck: PitchDeck }) {
   const ins = deck.insights;
   const fgTitle = t.dark ? "text-white" : "text-black";
   const fgSub = t.dark ? "text-white/60" : "text-black/55";
-  const chipBg = t.dark ? "border-white/10 bg-white/5" : "border-black/10 bg-black/5";
+  const chipBg = t.dark
+    ? "border-white/10 bg-white/5"
+    : "border-black/10 bg-black/5";
   return (
     <div className="flex h-full w-full flex-col items-center justify-center px-24 text-center">
       <motion.div
@@ -837,7 +1048,9 @@ function ClosingSlide({ deck }: { deck: PitchDeck }) {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="grid h-20 w-20 place-items-center rounded-3xl text-white shadow-[0_18px_44px_rgba(99,102,241,0.4),inset_0_1px_0_rgba(255,255,255,0.35)]"
-        style={{ background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})` }}
+        style={{
+          background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})`,
+        }}
       >
         <Rocket className="h-9 w-9" />
       </motion.div>
@@ -845,7 +1058,10 @@ function ClosingSlide({ deck }: { deck: PitchDeck }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.65, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
-        className={cn("mt-8 text-[64px] font-bold leading-tight tracking-tight", fgTitle)}
+        className={cn(
+          "mt-8 text-[64px] font-bold leading-tight tracking-tight",
+          fgTitle,
+        )}
       >
         Let&apos;s build <span style={{ color: t.accent }}>this together.</span>
       </motion.h2>
@@ -867,13 +1083,31 @@ function ClosingSlide({ deck }: { deck: PitchDeck }) {
           { label: "Slides", value: "13" },
           {
             label: "Words distilled",
-            value: String(deck.stats.words).replace(/\B(?=(\d{3})+(?!\d))/g, ","),
+            value: String(deck.stats.words).replace(
+              /\B(?=(\d{3})+(?!\d))/g,
+              ",",
+            ),
           },
           { label: "Readiness", value: `${deck.readiness.overall}/100` },
         ].map((s) => (
-          <div key={s.label} className={cn("rounded-2xl border px-7 py-5 backdrop-blur-md", chipBg)}>
-            <div className={cn("text-[34px] font-bold tracking-tight", fgTitle)}>{s.value}</div>
-            <div className={cn("mt-1 text-[13px] font-medium uppercase tracking-[0.16em]", fgSub)}>
+          <div
+            key={s.label}
+            className={cn(
+              "rounded-2xl border px-7 py-5 backdrop-blur-md",
+              chipBg,
+            )}
+          >
+            <div
+              className={cn("text-[34px] font-bold tracking-tight", fgTitle)}
+            >
+              {s.value}
+            </div>
+            <div
+              className={cn(
+                "mt-1 text-[13px] font-medium uppercase tracking-[0.16em]",
+                fgSub,
+              )}
+            >
               {s.label}
             </div>
           </div>
@@ -956,7 +1190,11 @@ export function useStageScale(designWidth = 1280) {
 }
 
 const stageVariants = {
-  enter: (dir: number) => ({ x: dir >= 0 ? 90 : -90, opacity: 0, scale: 0.988 }),
+  enter: (dir: number) => ({
+    x: dir >= 0 ? 90 : -90,
+    opacity: 0,
+    scale: 0.988,
+  }),
   center: { x: 0, opacity: 1, scale: 1 },
   exit: (dir: number) => ({ x: dir >= 0 ? -90 : 90, opacity: 0, scale: 0.988 }),
 };
@@ -980,7 +1218,10 @@ export function DeckStage({
 
   return (
     <div ref={ref} className={cn("w-full", className)}>
-      <div className="relative mx-auto" style={{ width: 1280 * scale, height: 720 * scale }}>
+      <div
+        className="relative mx-auto"
+        style={{ width: 1280 * scale, height: 720 * scale }}
+      >
         <div
           className="absolute left-0 top-0 origin-top-left"
           style={{ width: 1280, height: 720, transform: `scale(${scale})` }}
@@ -996,10 +1237,121 @@ export function DeckStage({
               transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
               className="h-full w-full"
             >
-              <SlideContent deck={deck} slide={slide} index={safeIndex} total={total} />
+              <SlideContent
+                deck={deck}
+                slide={slide}
+                index={safeIndex}
+                total={total}
+              />
             </motion.div>
           </AnimatePresence>
         </div>
+      </div>
+    </div>
+  );
+}
+
+export function DeckWireframe({
+  deck,
+  index,
+}: {
+  deck: PitchDeck;
+  index: number;
+}) {
+  const slides = deckSlides(deck);
+  const safeIndex = Math.max(0, Math.min(index, slides.length - 1));
+  const slide = slides[safeIndex];
+  const isCover = slide.kind === "cover";
+  const isClosing = slide.kind === "closing";
+  const title =
+    slide.kind === "section"
+      ? slide.section.title
+      : slide.kind === "cover"
+        ? deck.title
+        : slide.kind === "closing"
+          ? "Conclusion"
+          : slideLabel(slide);
+  const content =
+    slide.kind === "section"
+      ? slide.section.bullets
+      : slide.kind === "insight"
+        ? slide.insight === "product"
+          ? [deck.insights.elevatorPitch, deck.insights.executiveSummary]
+          : slide.insight === "market"
+            ? [deck.insights.marketNote]
+            : slide.insight === "gtm"
+              ? deck.insights.gtm
+              : slide.insight === "roadmap"
+                ? deck.insights.roadmap.flatMap((phase) => [
+                    phase.phase,
+                    ...phase.items,
+                  ])
+                : [deck.insights.fundingAsk]
+        : [];
+
+  return (
+    <div
+      aria-label={`Low-detail wireframe for slide ${safeIndex + 1}`}
+      className="relative mx-auto aspect-video w-full overflow-hidden rounded-2xl border border-white/15 bg-[#f8fafc] p-[5%] text-slate-900 shadow-2xl"
+    >
+      <div className="absolute inset-x-0 top-0 h-2 bg-slate-300" />
+      <div
+        className={`flex h-full gap-[5%] ${isCover || isClosing ? "flex-col items-center justify-center text-center" : ""}`}
+      >
+        {!isCover && !isClosing && (
+          <div className="flex w-[38%] flex-col gap-4 pt-[5%]">
+            <div className="h-3 w-1/3 rounded bg-slate-300" />
+            <div className="h-8 w-5/6 rounded bg-slate-400" />
+            <div className="h-2 w-2/3 rounded bg-slate-200" />
+          </div>
+        )}
+        <div
+          className={`${isCover || isClosing ? "w-4/5" : "flex-1"} flex flex-col gap-4`}
+        >
+          <div
+            className={`${isCover || isClosing ? "mx-auto w-4/5" : "w-full"} rounded bg-slate-300 px-3 py-2 text-sm font-semibold text-slate-700`}
+          >
+            {title}
+          </div>
+          {isCover && (
+            <div className="mx-auto h-3 w-2/3 rounded bg-slate-200" />
+          )}
+          <div
+            className={`${isCover || isClosing ? "mx-auto w-2/3" : "w-full"} flex flex-1 flex-col gap-3`}
+          >
+            {content.length > 0 ? (
+              content.slice(0, 4).map((item, itemIndex) => (
+                <div
+                  key={`${itemIndex}-${item}`}
+                  className="min-h-10 flex-1 rounded-lg border border-slate-200 bg-slate-100 p-2"
+                >
+                  <div className="h-2 w-4/5 rounded bg-slate-300" />
+                  <div className="mt-2 h-2 w-3/5 rounded bg-slate-200" />
+                </div>
+              ))
+            ) : (
+              <div className="flex-1 rounded-lg border border-dashed border-slate-300 bg-slate-100 p-4">
+                <div className="h-2 w-4/5 rounded bg-slate-300" />
+                <div className="mt-2 h-2 w-3/5 rounded bg-slate-200" />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="absolute bottom-[3%] left-[5%] right-[5%] flex justify-between text-[10px] font-medium uppercase tracking-widest text-slate-400">
+        <span>
+          Layout:{" "}
+          {isCover
+            ? "Title hero"
+            : isClosing
+              ? "Conclusion"
+              : slide.kind === "section"
+                ? "Split content"
+                : "Content cards"}
+        </span>
+        <span>
+          {safeIndex + 1} / {slides.length}
+        </span>
       </div>
     </div>
   );
@@ -1020,9 +1372,18 @@ export function PrintDeck({ deck }: { deck: PitchDeck }) {
           <div className="mx-auto" style={{ width: 1123, height: 632 }}>
             <div
               className="origin-top-left"
-              style={{ width: 1280, height: 720, transform: `scale(${PRINT_SCALE})` }}
+              style={{
+                width: 1280,
+                height: 720,
+                transform: `scale(${PRINT_SCALE})`,
+              }}
             >
-              <SlideContent deck={deck} slide={slide} index={i} total={slides.length} />
+              <SlideContent
+                deck={deck}
+                slide={slide}
+                index={i}
+                total={slides.length}
+              />
             </div>
           </div>
         </div>
